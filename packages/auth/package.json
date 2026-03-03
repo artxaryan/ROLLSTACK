@@ -1,0 +1,24 @@
+{
+  "name": "@sams-t-app/auth",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@sams-t-app/db": "workspace:*",
+    "@sams-t-app/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@sams-t-app/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
