@@ -1,133 +1,204 @@
-import { useForm } from "@tanstack/react-form";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
-import z from "zod";
-
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
-
+import { cn } from "@/lib/utils";
+import { trpcClient } from "@/utils/trpc";
 import Loader from "./loader";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
 
-export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
-  const router = useRouter();
-  const { isPending } = authClient.useSession();
+interface LoginFormProps extends React.HTMLAttributes<HTMLDivElement> {
+  onSwitchToSignUp: () => void;
+}
 
-  const form = useForm({
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-    onSubmit: async ({ value }) => {
-      await authClient.signIn.email(
-        {
-          email: value.email,
-          password: value.password,
-        },
+export function LoginForm({
+  className,
+  onSwitchToSignUp,
+  ...props
+}: LoginFormProps) {
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+
+  const { isPending: sessionPending } = authClient.useSession();
+
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { exists } = await trpcClient.checkUserExists.query({ email });
+
+      if (!exists) {
+        toast.error("This user does not exist, please sign up");
+        return;
+      }
+
+      const result = await authClient.emailOtp.sendVerificationOtp({
+        email,
+        type: "sign-in",
+      });
+
+      if (result.error) {
+        toast.error(result.error.message || "Failed to send OTP");
+      } else {
+        setOtpSent(true);
+        toast.success("OTP sent to your email");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!(otp && email)) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await authClient.signIn.emailOtp(
+        { email, otp },
         {
           onSuccess: () => {
-            router.push("/dashboard");
             toast.success("Sign in successful");
+            window.location.href = "/dashboard";
           },
-          onError: (error) => {
-            toast.error(error.error.message || error.error.statusText);
+          onError: (ctx: { error: { message: string } }) => {
+            toast.error(ctx.error.message || "Invalid OTP");
           },
-        },
+        }
       );
-    },
-    validators: {
-      onSubmit: z.object({
-        email: z.email("Invalid email address"),
-        password: z.string().min(8, "Password must be at least 8 characters"),
-      }),
-    },
-  });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  if (isPending) {
+  if (sessionPending) {
     return <Loader />;
   }
 
   return (
-    <div className="mx-auto w-full mt-10 max-w-md p-6">
-      <h1 className="mb-6 text-center text-3xl font-bold">Welcome Back</h1>
+    <div className={cn("flex flex-col gap-6", className)} {...props}>
+      <Card className="glass-card relative overflow-hidden">
+        <CardHeader className="modern-saas-header">
+          <CardTitle className="modern-saas-title text-2xl">
+            Welcome back
+          </CardTitle>
+          <CardDescription className="modern-saas-description">
+            {otpSent
+              ? "Enter the OTP sent to your email"
+              : "Login with your email"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form>
+            <div className="flex flex-col gap-6">
+              {otpSent ? (
+                <>
+                  <div>
+                    <Label className="form-label text-gray-200" htmlFor="otp">
+                      Enter OTP
+                    </Label>
+                    <div className="gradient-input-wrapper">
+                      <Input
+                        className="gradient-input"
+                        id="otp"
+                        maxLength={6}
+                        onChange={(e) => setOtp(e.target.value)}
+                        placeholder="123456"
+                        required
+                        type="text"
+                        value={otp}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    className="shine-button w-full"
+                    disabled={otp.length !== 6 || isLoading}
+                    onClick={handleVerifyOtp}
+                    type="submit"
+                  >
+                    {isLoading ? "Verifying..." : "Verify & Login"}
+                  </Button>
+                  <Button
+                    className="glass-button w-full"
+                    onClick={() => {
+                      setOtpSent(false);
+                      setOtp("");
+                    }}
+                    type="button"
+                    variant="ghost"
+                  >
+                    Change email
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <Label className="form-label text-gray-200" htmlFor="email">
+                      Email
+                    </Label>
+                    <div className="gradient-input-wrapper">
+                      <Input
+                        className="gradient-input"
+                        id="email"
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="m@example.com"
+                        required
+                        type="email"
+                        value={email}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    className="shine-button w-full"
+                    disabled={!email || isLoading}
+                    onClick={handleSendOtp}
+                    type="submit"
+                  >
+                    {isLoading ? "Sending OTP..." : "Send OTP"}
+                  </Button>
+                </>
+              )}
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          form.handleSubmit();
-        }}
-        className="space-y-4"
-      >
-        <div>
-          <form.Field name="email">
-            {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={field.name}>Email</Label>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  type="email"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                />
-                {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
-                    {error?.message}
-                  </p>
-                ))}
+              <div className="relative py-3">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-white/10 border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-[#0f0f1a] px-4 text-white/40">Or</span>
+                </div>
               </div>
-            )}
-          </form.Field>
-        </div>
 
-        <div>
-          <form.Field name="password">
-            {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={field.name}>Password</Label>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  type="password"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                />
-                {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
-                    {error?.message}
-                  </p>
-                ))}
-              </div>
-            )}
-          </form.Field>
-        </div>
-
-        <form.Subscribe>
-          {(state) => (
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={!state.canSubmit || state.isSubmitting}
-            >
-              {state.isSubmitting ? "Submitting..." : "Sign In"}
-            </Button>
-          )}
-        </form.Subscribe>
-      </form>
-
-      <div className="mt-4 text-center">
-        <Button
-          variant="link"
-          onClick={onSwitchToSignUp}
-          className="text-indigo-600 hover:text-indigo-800"
-        >
-          Need an account? Sign Up
-        </Button>
-      </div>
+              <Button
+                className="glass-button w-full"
+                onClick={onSwitchToSignUp}
+                type="button"
+                variant="outline"
+              >
+                Sign Up
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
+
+export { LoginForm as SignInForm };
+export default LoginForm;

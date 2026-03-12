@@ -1,4 +1,8 @@
+import { user } from "@sams-t-app/db/schema/auth";
+import { eq } from "drizzle-orm";
+import { z } from "zod";
 import { protectedProcedure, publicProcedure, router } from "../index";
+import { classRouter } from "./class";
 
 export const appRouter = router({
   healthCheck: publicProcedure.query(() => {
@@ -10,5 +14,22 @@ export const appRouter = router({
       user: ctx.session.user,
     };
   }),
+  checkUserExists: publicProcedure
+    .input(
+      z.object({
+        email: z.string().email(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const existingUser = await ctx.db
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.email, input.email.toLowerCase()))
+        .limit(1);
+      return {
+        exists: !!existingUser[0],
+      };
+    }),
+  class: classRouter,
 });
 export type AppRouter = typeof appRouter;

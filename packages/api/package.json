@@ -16,12 +16,13 @@
     "@sams-t-app/env": "workspace:*",
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
+    "drizzle-orm": "catalog:",
     "dotenv": "catalog:",
+    "hono": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@sams-t-app/config": "workspace:*",
-    "hono": "catalog:",
     "typescript": "catalog:"
   }
 }

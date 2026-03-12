@@ -27,5 +27,5 @@
   "dbSetup": "neon",
   "api": "trpc",
   "webDeploy": "none",
-  "serverDeploy": "none",
+  "serverDeploy": "none"
 }

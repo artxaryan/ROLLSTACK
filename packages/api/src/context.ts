@@ -1,10 +1,10 @@
+import { auth } from "@sams-t-app/auth";
+import { db } from "@sams-t-app/db";
 import type { Context as HonoContext } from "hono";
 
-import { auth } from "@sams-t-app/auth";
-
-export type CreateContextOptions = {
+export interface CreateContextOptions {
   context: HonoContext;
-};
+}
 
 export async function createContext({ context }: CreateContextOptions) {
   const session = await auth.api.getSession({
@@ -12,6 +12,7 @@ export async function createContext({ context }: CreateContextOptions) {
   });
   return {
     session,
+    db,
   };
 }
 
