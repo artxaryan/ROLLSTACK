@@ -1,19 +1,67 @@
 "use server";
 
-import { auth } from "@sams-t-app/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+
+const SERVER_URL =
+  process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000";
+
+interface SessionUser {
+  email: string;
+  emailVerified: boolean;
+  id: string;
+  image?: string | null;
+  name: string;
+  role: string;
+}
+
+interface Session {
+  session: {
+    id: string;
+    userId: string;
+    token: string;
+    expiresAt: string;
+    createdAt: string;
+    updatedAt: string;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+  };
+  user: SessionUser;
+}
+
+/**
+ * Get session from auth API without importing server modules
+ */
+async function getSession(): Promise<Session | null> {
+  try {
+    const headersList = await headers();
+    const cookie = headersList.get("cookie") || "";
+
+    const response = await fetch(`${SERVER_URL}/api/auth/get-session`, {
+      headers: {
+        cookie,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Error getting session:", error);
+    return null;
+  }
+}
 
 /**
  * Get the current user's role from the session
  * Returns null if no user is logged in
  */
 export async function getCurrentUserRole(): Promise<string | null> {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  return (session?.user?.role as string) ?? null;
+  const session = await getSession();
+  return session?.user?.role ?? null;
 }
 
 /**
@@ -36,9 +84,7 @@ export async function isStudent(): Promise<boolean> {
  * Redirect to login if not authenticated
  */
 export async function requireAuth(): Promise<void> {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getSession();
 
   if (!session?.user) {
     redirect("/login");

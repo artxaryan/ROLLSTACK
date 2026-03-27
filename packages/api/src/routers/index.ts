@@ -30,6 +30,24 @@ export const appRouter = router({
         exists: !!existingUser[0],
       };
     }),
+  updateUserRole: protectedProcedure
+    .input(
+      z.object({
+        role: z.enum(["student", "professor"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.session?.user?.id) {
+        throw new Error("User not authenticated");
+      }
+
+      await ctx.db
+        .update(user)
+        .set({ role: input.role })
+        .where(eq(user.id, ctx.session.user.id));
+
+      return { success: true };
+    }),
   class: classRouter,
 });
 export type AppRouter = typeof appRouter;

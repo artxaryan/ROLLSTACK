@@ -30,7 +30,6 @@ export function SignUpForm({
   const [role, setRole] = useState<"student" | "professor">("student");
   const [isLoading, setIsLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
-  const [tempPassword, setTempPassword] = useState("");
 
   const { isPending: sessionPending } = authClient.useSession();
 
@@ -51,25 +50,23 @@ export function SignUpForm({
         return;
       }
 
-      const randomPassword = crypto.randomUUID();
-      setTempPassword(randomPassword);
+      // Store role temporarily for after verification
+      sessionStorage.setItem("pendingSignupRole", role);
+      sessionStorage.setItem("pendingSignupName", name);
 
-      await authClient.signUp.email(
-        {
-          email,
-          name,
-          password: randomPassword,
-        },
-        {
-          onRequest: () => {
-            setOtpSent(true);
-            toast.success("Creating account...");
-          },
-          onError: (ctx: { error: { message: string } }) => {
-            toast.error(ctx.error.message || "Failed to create account");
-          },
-        }
-      );
+      const result = await authClient.emailOtp.sendVerificationOtp({
+        email,
+        type: "sign-in",
+      });
+
+      if (result.error) {
+        toast.error(result.error.message || "Failed to send OTP");
+        sessionStorage.removeItem("pendingSignupRole");
+        sessionStorage.removeItem("pendingSignupName");
+      } else {
+        setOtpSent(true);
+        toast.success("OTP sent to your email");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -83,10 +80,14 @@ export function SignUpForm({
 
     setIsLoading(true);
     try {
-      // Verify the email with OTP
-      const result = await authClient.emailOtp.verifyEmail({
+      const pendingName = sessionStorage.getItem("pendingSignupName") || name;
+      const pendingRole = sessionStorage.getItem("pendingSignupRole") || role;
+
+      // Sign in with OTP - this creates the user if they don't exist
+      const result = await authClient.signIn.emailOtp({
         email,
         otp,
+        name: pendingName,
       });
 
       if (result.error) {
@@ -94,16 +95,18 @@ export function SignUpForm({
         return;
       }
 
-      // Email verified successfully, now sign in
-      const signInResult = await authClient.signIn.email({
-        email,
-        password: tempPassword,
-      });
-
-      if (signInResult.error) {
-        toast.error(signInResult.error.message || "Failed to sign in");
-        return;
+      // Update role if needed (since default is "student")
+      if (pendingRole === "professor") {
+        try {
+          await trpcClient.updateUserRole.mutate({ role: "professor" });
+        } catch (roleError) {
+          console.error("Failed to update role:", roleError);
+        }
       }
+
+      // Clear temporary storage
+      sessionStorage.removeItem("pendingSignupRole");
+      sessionStorage.removeItem("pendingSignupName");
 
       toast.success("Account created and verified!");
       window.location.href = "/dashboard";
@@ -164,6 +167,8 @@ export function SignUpForm({
                     onClick={() => {
                       setOtpSent(false);
                       setOtp("");
+                      sessionStorage.removeItem("pendingSignupRole");
+                      sessionStorage.removeItem("pendingSignupName");
                     }}
                     type="button"
                     variant="ghost"

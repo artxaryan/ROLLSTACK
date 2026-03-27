@@ -1,27 +1,19 @@
-import { auth } from "@sams-t-app/auth";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { isProfessor, isStudent } from "@/lib/check-role";
 
 export default async function DashboardPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session?.user) {
-    redirect("/login");
+  // Check user role and redirect accordingly
+  const professor = await isProfessor();
+  if (professor) {
+    redirect("/professor/dashboard" as never);
   }
 
-  // Redirect based on user role
-  if (await isProfessor()) {
-    redirect("/professor/dashboard");
+  const student = await isStudent();
+  if (student) {
+    redirect("/student/dashboard" as never);
   }
 
-  if (await isStudent()) {
-    redirect("/student/dashboard");
-  }
-
-  // Fallback - if role is unknown, redirect to login
-  redirect("/login");
+  // If no session/role, redirect to login
+  redirect("/login" as never);
 }
