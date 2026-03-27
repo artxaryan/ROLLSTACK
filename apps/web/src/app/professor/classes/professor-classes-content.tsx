@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
+  Copy,
   GraduationCap,
   LayoutDashboard,
   Plus,
@@ -35,7 +36,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/utils/trpc";
 
-interface ProfessorDashboardContentProps {
+interface ProfessorClassesContentProps {
   user: {
     id: string;
     name: string;
@@ -55,144 +56,119 @@ const navigation = [
   { name: "Settings", href: "/professor/settings" as const, icon: Settings },
 ];
 
-const DAY_NAMES = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
-
-interface TodayClass {
-  class?: {
-    id: string;
-    className: string;
-    subject: string;
-    classCode: string;
-    studentCount: number;
-  } | null;
-  classId: string;
-  dayOfWeek: number;
-  endTime: string;
-  id: string;
-  lectureHall: string;
-  startTime: string;
-}
-
-function TodayClassesSection({
+function ClassesGrid({
   isLoading,
-  todayClasses,
-  onOpenClass,
+  classes,
+  onCopyCode,
+  onCreateClick,
 }: {
   isLoading: boolean;
-  todayClasses: TodayClass[] | undefined;
-  onOpenClass: (classId: string) => void;
+  classes:
+    | Array<{
+        id: string;
+        className: string;
+        subject: string;
+        classCode: string;
+        studentCount: number;
+      }>
+    | undefined;
+  onCopyCode: (code: string) => void;
+  onCreateClick: () => void;
 }) {
-  const jsDay = new Date().getDay();
-  const dayOfWeek = jsDay === 0 ? 6 : jsDay - 1;
-  const todayName = DAY_NAMES[dayOfWeek];
-
   if (isLoading) {
     return (
-      <div className="mb-8">
-        <h2 className="mb-4 font-semibold text-lg">
-          Today&apos;s Classes ({todayName})
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {new Array(2).fill(null).map((_, index) => (
-            <Card
-              className="h-40 animate-pulse"
-              key={`today-loading-${index}-${Date.now()}`}
-            >
-              <CardHeader className="bg-muted" />
-            </Card>
-          ))}
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {new Array(3).fill(null).map((_, index) => (
+          <Card
+            className="h-48 animate-pulse"
+            key={`loading-${index}-${Date.now()}`}
+          >
+            <CardHeader className="bg-muted" />
+          </Card>
+        ))}
       </div>
     );
   }
 
-  if (!todayClasses || todayClasses.length === 0) {
+  if (!classes || classes.length === 0) {
     return (
-      <div className="mb-8">
-        <h2 className="mb-4 font-semibold text-lg">
-          Today&apos;s Classes ({todayName})
-        </h2>
-        <div className="rounded-lg border border-dashed p-8 text-center">
-          <p className="text-muted-foreground">
-            No classes scheduled for today
-          </p>
+      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12">
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-none bg-muted">
+          <GraduationCap className="h-6 w-6 text-muted-foreground" />
         </div>
+        <h3 className="mb-1 font-medium text-lg">No classes yet</h3>
+        <p className="mb-4 text-muted-foreground text-sm">
+          Create your first class to get started
+        </p>
+        <Button onClick={onCreateClick}>
+          <Plus className="mr-2 h-4 w-4" />
+          Create Class
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="mb-8">
-      <h2 className="mb-4 font-semibold text-lg">
-        Today&apos;s Classes ({todayName})
-      </h2>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {todayClasses.map((schedule) =>
-          schedule.class ? (
-            <Card
-              className="group cursor-pointer rounded-lg border transition-all hover:shadow-md"
-              key={schedule.id}
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {classes.map((classItem) => (
+        <Card
+          className="group cursor-pointer rounded-lg border transition-all hover:shadow-md"
+          key={classItem.id}
+        >
+          <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5">
+            <CardTitle className="line-clamp-1">
+              {classItem.className}
+            </CardTitle>
+            <CardDescription>{classItem.subject}</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Class Code:</span>
+                <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs">
+                  {classItem.classCode}
+                </code>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Students:</span>
+                <span className="font-medium">{classItem.studentCount}</span>
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="gap-2">
+            <Button
+              className="flex-1 rounded-full transition-all duration-200 hover:bg-primary hover:text-primary-foreground active:scale-[0.98]"
+              onClick={() => onCopyCode(classItem.classCode)}
+              variant="outline"
             >
-              <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5">
-                <CardTitle className="line-clamp-1">
-                  {schedule.class.className}
-                </CardTitle>
-                <CardDescription>{schedule.class.subject}</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Time:</span>
-                    <span className="font-medium">
-                      {schedule.startTime} - {schedule.endTime}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Lecture Hall:</span>
-                    <span className="font-medium">{schedule.lectureHall}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Students:</span>
-                    <span className="font-medium">
-                      {schedule.class.studentCount}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button
-                  className="w-full rounded-full transition-all duration-200 hover:shadow-md hover:brightness-110 active:scale-[0.98]"
-                  onClick={() => onOpenClass(schedule.classId)}
-                >
-                  Open Class
-                </Button>
-              </CardFooter>
-            </Card>
-          ) : null
-        )}
-      </div>
+              <Copy className="mr-2 h-4 w-4" />
+              Copy Code
+            </Button>
+            <Button
+              className="flex-1 rounded-full transition-all duration-200 hover:shadow-md hover:brightness-110 active:scale-[0.98]"
+              onClick={() => {
+                window.location.href = `/professor/class/${classItem.id}`;
+              }}
+            >
+              Open Class
+            </Button>
+          </CardFooter>
+        </Card>
+      ))}
     </div>
   );
 }
 
-export function ProfessorDashboardContent({
+export function ProfessorClassesContent({
   user: _user,
-}: ProfessorDashboardContentProps) {
+}: ProfessorClassesContentProps) {
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [className, setClassName] = useState("");
   const [subject, setSubject] = useState("");
 
-  const todayClassesQuery = useQuery(trpc.class.getTodayClasses.queryOptions());
+  const classesQuery = useQuery(trpc.class.getAll.queryOptions());
   const createClassMutation = useMutation({
     ...trpc.class.create.mutationOptions(),
     onSuccess: () => {
@@ -222,8 +198,15 @@ export function ProfessorDashboardContent({
     });
   };
 
-  const handleOpenClass = (classId: string) => {
-    window.location.href = `/professor/class/${classId}`;
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard
+      .writeText(code)
+      .then(() => {
+        toast.success("Class code copied to clipboard");
+      })
+      .catch(() => {
+        toast.error("Failed to copy code");
+      });
   };
 
   return (
@@ -292,14 +275,13 @@ export function ProfessorDashboardContent({
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
-        {/* Page Content */}
         <div className="p-6">
           {/* Header */}
           <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="font-semibold text-2xl">My Classes</h1>
+              <h1 className="font-semibold text-2xl">All Classes</h1>
               <p className="text-muted-foreground text-sm">
-                Manage your classes and track attendance
+                Manage all your classes and view their details
               </p>
             </div>
             <Button
@@ -311,11 +293,12 @@ export function ProfessorDashboardContent({
             </Button>
           </div>
 
-          {/* Today's Classes */}
-          <TodayClassesSection
-            isLoading={todayClassesQuery.isLoading}
-            onOpenClass={handleOpenClass}
-            todayClasses={todayClassesQuery.data}
+          {/* All Classes */}
+          <ClassesGrid
+            classes={classesQuery.data}
+            isLoading={classesQuery.isLoading}
+            onCopyCode={handleCopyCode}
+            onCreateClick={() => setIsCreateModalOpen(true)}
           />
         </div>
       </main>

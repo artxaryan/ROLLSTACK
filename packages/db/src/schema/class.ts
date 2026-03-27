@@ -4,6 +4,7 @@ import {
   integer,
   pgTable,
   text,
+  time,
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
@@ -21,6 +22,8 @@ export const classTable = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     studentCount: integer("student_count").default(0).notNull(),
+    semesterStartDate: timestamp("semester_start_date"),
+    semesterEndDate: timestamp("semester_end_date"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -54,12 +57,36 @@ export const studentEnrollment = pgTable(
   ]
 );
 
+export const classSchedule = pgTable(
+  "class_schedule",
+  {
+    id: text("id").primaryKey(),
+    classId: text("class_id")
+      .notNull()
+      .references(() => classTable.id, { onDelete: "cascade" }),
+    dayOfWeek: integer("day_of_week").notNull(), // 0=Monday, 6=Sunday
+    startTime: time("start_time").notNull(),
+    endTime: time("end_time").notNull(),
+    lectureHall: text("lecture_hall").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("schedule_classId_idx").on(table.classId),
+    index("schedule_dayOfWeek_idx").on(table.dayOfWeek),
+  ]
+);
+
 export const classRelations = relations(classTable, ({ one, many }) => ({
   professor: one(user, {
     fields: [classTable.professorId],
     references: [user.id],
   }),
   enrollments: many(studentEnrollment),
+  schedules: many(classSchedule),
 }));
 
 export const studentEnrollmentRelations = relations(
@@ -76,7 +103,87 @@ export const studentEnrollmentRelations = relations(
   })
 );
 
+export const classScheduleRelations = relations(classSchedule, ({ one }) => ({
+  class: one(classTable, {
+    fields: [classSchedule.classId],
+    references: [classTable.id],
+  }),
+}));
+
+export const attendance = pgTable(
+  "attendance",
+  {
+    id: text("id").primaryKey(),
+    classId: text("class_id")
+      .notNull()
+      .references(() => classTable.id, { onDelete: "cascade" }),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    date: timestamp("date").defaultNow().notNull(),
+    status: text("status").notNull(), // "present" or "absent"
+    markedBy: text("marked_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("attendance_classId_idx").on(table.classId),
+    index("attendance_studentId_idx").on(table.studentId),
+    index("attendance_date_idx").on(table.date),
+    unique("attendance_unique").on(table.classId, table.studentId, table.date),
+  ]
+);
+
+export const attendanceRelations = relations(attendance, ({ one }) => ({
+  class: one(classTable, {
+    fields: [attendance.classId],
+    references: [classTable.id],
+  }),
+  student: one(user, {
+    fields: [attendance.studentId],
+    references: [user.id],
+  }),
+  marker: one(user, {
+    fields: [attendance.markedBy],
+    references: [user.id],
+  }),
+}));
+
+export const cancelledClass = pgTable(
+  "cancelled_class",
+  {
+    id: text("id").primaryKey(),
+    classId: text("class_id")
+      .notNull()
+      .references(() => classTable.id, { onDelete: "cascade" }),
+    date: timestamp("date").notNull(),
+    cancelledBy: text("cancelled_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("cancelled_class_classId_idx").on(table.classId),
+    index("cancelled_class_date_idx").on(table.date),
+    unique("cancelled_class_unique").on(table.classId, table.date),
+  ]
+);
+
+export const cancelledClassRelations = relations(cancelledClass, ({ one }) => ({
+  class: one(classTable, {
+    fields: [cancelledClass.classId],
+    references: [classTable.id],
+  }),
+  cancelledByUser: one(user, {
+    fields: [cancelledClass.cancelledBy],
+    references: [user.id],
+  }),
+}));
+
 export const userClassRelations = relations(user, ({ many }) => ({
   classes: many(classTable),
   enrollments: many(studentEnrollment),
+  attendanceRecords: many(attendance),
+  cancelledClasses: many(cancelledClass),
 }));

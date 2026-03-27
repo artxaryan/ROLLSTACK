@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 const SERVER_URL =
   process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000";
 
-interface SessionUser {
+export interface SessionUser {
   email: string;
   emailVerified: boolean;
   id: string;
@@ -15,7 +15,7 @@ interface SessionUser {
   role: string;
 }
 
-interface Session {
+export interface Session {
   session: {
     id: string;
     userId: string;
@@ -32,7 +32,7 @@ interface Session {
 /**
  * Get session from auth API without importing server modules
  */
-async function getSession(): Promise<Session | null> {
+export async function getSession(): Promise<Session | null> {
   try {
     const headersList = await headers();
     const cookie = headersList.get("cookie") || "";
@@ -87,7 +87,7 @@ export async function requireAuth(): Promise<void> {
   const session = await getSession();
 
   if (!session?.user) {
-    redirect("/login");
+    redirect("/login" as never);
   }
 }
 
@@ -99,7 +99,7 @@ export async function requireProfessor(): Promise<void> {
 
   const role = await getCurrentUserRole();
   if (role === "student") {
-    redirect("/dashboard");
+    redirect("/dashboard" as never);
   }
 }
 
@@ -111,6 +111,6 @@ export async function requireStudent(): Promise<void> {
 
   const role = await getCurrentUserRole();
   if (role === "professor") {
-    redirect("/professor/dashboard");
+    redirect("/professor/dashboard" as never);
   }
 }

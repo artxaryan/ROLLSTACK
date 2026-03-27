@@ -8,6 +8,20 @@
       "when": 1772563712493,
       "tag": "0000_groovy_dragon_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773390002586,
+      "tag": "0001_add_attendance_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773980738516,
+      "tag": "0002_dashing_revanche",
+      "breakpoints": true
     }
   ]
 }

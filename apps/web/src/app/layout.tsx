@@ -38,6 +38,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${vt323.variable} antialiased`}
       >
         <Providers>
+          <div className="gradient-bg">
+            <div className="gradient-blob gradient-blob-1" />
+            <div className="gradient-blob gradient-blob-2" />
+            <div className="gradient-blob gradient-blob-3" />
+          </div>
           <div className="min-h-svh pt-24">
             <Header />
             {children}

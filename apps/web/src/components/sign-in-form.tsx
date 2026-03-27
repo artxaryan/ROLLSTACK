@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
-import { trpcClient } from "@/utils/trpc";
 import Loader from "./loader";
 
 interface LoginFormProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -39,24 +38,18 @@ export function LoginForm({
 
     setIsLoading(true);
     try {
-      const { exists } = await trpcClient.checkUserExists.query({ email });
-
-      if (!exists) {
-        toast.error("This user does not exist, please sign up");
-        return;
-      }
-
-      const result = await authClient.emailOtp.sendVerificationOtp({
-        email,
-        type: "sign-in",
-      });
-
-      if (result.error) {
-        toast.error(result.error.message || "Failed to send OTP");
-      } else {
-        setOtpSent(true);
-        toast.success("OTP sent to your email");
-      }
+      await authClient.emailOtp.sendVerificationOtp(
+        { email, type: "sign-in" },
+        {
+          onRequest: () => {
+            setOtpSent(true);
+            toast.success("OTP sent to your email");
+          },
+          onError: (ctx: { error: { message: string } }) => {
+            toast.error(ctx.error.message || "Failed to send OTP");
+          },
+        }
+      );
     } finally {
       setIsLoading(false);
     }
@@ -93,12 +86,10 @@ export function LoginForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="glass-card relative overflow-hidden">
-        <CardHeader className="modern-saas-header">
-          <CardTitle className="modern-saas-title text-2xl">
-            Welcome back
-          </CardTitle>
-          <CardDescription className="modern-saas-description">
+      <Card>
+        <CardHeader className="text-center">
+          <CardTitle className="text-xl">Welcome back</CardTitle>
+          <CardDescription>
             {otpSent
               ? "Enter the OTP sent to your email"
               : "Login with your email"}
@@ -109,25 +100,20 @@ export function LoginForm({
             <div className="flex flex-col gap-6">
               {otpSent ? (
                 <>
-                  <div>
-                    <Label className="form-label text-gray-200" htmlFor="otp">
-                      Enter OTP
-                    </Label>
-                    <div className="gradient-input-wrapper">
-                      <Input
-                        className="gradient-input"
-                        id="otp"
-                        maxLength={6}
-                        onChange={(e) => setOtp(e.target.value)}
-                        placeholder="123456"
-                        required
-                        type="text"
-                        value={otp}
-                      />
-                    </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="otp">Enter OTP</Label>
+                    <Input
+                      id="otp"
+                      maxLength={6}
+                      onChange={(e) => setOtp(e.target.value)}
+                      placeholder="123456"
+                      required
+                      type="text"
+                      value={otp}
+                    />
                   </div>
                   <Button
-                    className="shine-button w-full"
+                    className="w-full"
                     disabled={otp.length !== 6 || isLoading}
                     onClick={handleVerifyOtp}
                     type="submit"
@@ -135,7 +121,7 @@ export function LoginForm({
                     {isLoading ? "Verifying..." : "Verify & Login"}
                   </Button>
                   <Button
-                    className="glass-button w-full"
+                    className="w-full"
                     onClick={() => {
                       setOtpSent(false);
                       setOtp("");
@@ -148,24 +134,19 @@ export function LoginForm({
                 </>
               ) : (
                 <>
-                  <div>
-                    <Label className="form-label text-gray-200" htmlFor="email">
-                      Email
-                    </Label>
-                    <div className="gradient-input-wrapper">
-                      <Input
-                        className="gradient-input"
-                        id="email"
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="m@example.com"
-                        required
-                        type="email"
-                        value={email}
-                      />
-                    </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="m@example.com"
+                      required
+                      type="email"
+                      value={email}
+                    />
                   </div>
                   <Button
-                    className="shine-button w-full"
+                    className="w-full"
                     disabled={!email || isLoading}
                     onClick={handleSendOtp}
                     type="submit"
@@ -175,17 +156,14 @@ export function LoginForm({
                 </>
               )}
 
-              <div className="relative py-3">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-white/10 border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="bg-[#0f0f1a] px-4 text-white/40">Or</span>
-                </div>
+              <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-border after:border-t">
+                <span className="relative z-10 bg-card px-2 text-muted-foreground text-xs">
+                  Or
+                </span>
               </div>
 
               <Button
-                className="glass-button w-full"
+                className="w-full"
                 onClick={onSwitchToSignUp}
                 type="button"
                 variant="outline"
@@ -201,4 +179,3 @@ export function LoginForm({
 }
 
 export { LoginForm as SignInForm };
-export default LoginForm;

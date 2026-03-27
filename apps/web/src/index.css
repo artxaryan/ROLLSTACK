@@ -119,75 +119,10 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
-    @apply font-sans bg-background text-foreground;
+    @apply bg-background text-foreground;
   }
-  html {
-    @apply font-sans;
-  }
-}
-
-.glass-card {
-  position: relative;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 1rem;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.3),
-    inset 0 0 80px rgba(255, 255, 255, 0.03);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-}
-
-.glass-card::before {
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: 1px;
-  content: "";
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.4),
-    transparent
-  );
-}
-
-.glass-card::after {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  content: "";
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.1) 0%,
-    transparent 50%,
-    rgba(255, 255, 255, 0.05) 100%
-  );
-}
-
-.modern-saas-header {
-  padding: 1.75rem 1.5rem;
-  margin: -1.5rem -1.5rem 1.5rem -1.5rem;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem 1rem 0 0;
-}
-
-.modern-saas-title {
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
-  letter-spacing: -0.025em;
-}
-
-.modern-saas-description {
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.5);
 }
 
 .gradient-input-wrapper {
@@ -199,54 +134,7 @@
     rgba(168, 85, 247, 0.3),
     rgba(139, 92, 246, 0.3)
   );
-  background-size: 200% 200%;
   border-radius: 1rem;
-  transition: background 0.3s ease;
-}
-
-.gradient-input-wrapper:hover {
-  background: linear-gradient(
-    135deg,
-    rgba(139, 92, 246, 0.5),
-    rgba(168, 85, 247, 0.5),
-    rgba(139, 92, 246, 0.5)
-  );
-  background-size: 200% 200%;
-  animation: gradientMove 2s ease infinite;
-}
-
-@keyframes gradientMove {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-.gradient-input-wrapper::before {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  content: "";
-  background: radial-gradient(
-    800px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
-    rgba(139, 92, 246, 0.15),
-    transparent 40%
-  );
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.gradient-input-wrapper:hover::before {
-  opacity: 1;
-}
-
-.gradient-input-wrapper input {
-  border-radius: 1rem !important;
 }
 
 .gradient-input {
@@ -321,4 +209,145 @@
 .glass-button:hover {
   background: rgba(255, 255, 255, 0.1) !important;
   border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Animated Gradient Background Blobs */
+.gradient-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.gradient-blob {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.5;
+  filter: blur(80px);
+}
+
+.gradient-blob-1 {
+  width: 400px;
+  height: 400px;
+  background: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.5),
+    rgba(245, 158, 11, 0.4)
+  );
+  animation: blob-orbit-1 20s linear infinite;
+}
+
+.gradient-blob-2 {
+  width: 350px;
+  height: 350px;
+  background: linear-gradient(
+    135deg,
+    rgba(167, 139, 250, 0.4),
+    rgba(139, 92, 246, 0.3)
+  );
+  animation: blob-orbit-2 25s linear infinite;
+}
+
+.gradient-blob-3 {
+  width: 300px;
+  height: 300px;
+  background: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.45),
+    rgba(245, 158, 11, 0.35)
+  );
+  animation: blob-orbit-3 30s linear infinite;
+}
+
+.dark .gradient-blob-1 {
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.4),
+    rgba(124, 58, 237, 0.3)
+  );
+}
+
+.dark .gradient-blob-2 {
+  background: linear-gradient(
+    135deg,
+    rgba(168, 85, 247, 0.35),
+    rgba(139, 92, 246, 0.25)
+  );
+}
+
+.dark .gradient-blob-3 {
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.3),
+    rgba(124, 58, 237, 0.25)
+  );
+}
+
+/* Blob 1: Top-left to bottom-right diagonal, stays in left portion */
+@keyframes blob-orbit-1 {
+  0% {
+    top: 5%;
+    left: 5%;
+  }
+  25% {
+    top: 25%;
+    left: 15%;
+  }
+  50% {
+    top: 45%;
+    left: 5%;
+  }
+  75% {
+    top: 25%;
+    left: -5%;
+  }
+  100% {
+    top: 5%;
+    left: 5%;
+  }
+}
+
+/* Blob 2: Right side vertical movement, stays in right portion */
+@keyframes blob-orbit-2 {
+  0% {
+    top: 10%;
+    left: 75%;
+  }
+  33% {
+    top: 40%;
+    left: 85%;
+  }
+  66% {
+    top: 70%;
+    left: 75%;
+  }
+  100% {
+    top: 10%;
+    left: 75%;
+  }
+}
+
+/* Blob 3: Bottom horizontal movement, stays in bottom portion */
+@keyframes blob-orbit-3 {
+  0% {
+    top: 65%;
+    left: 20%;
+  }
+  25% {
+    top: 75%;
+    left: 40%;
+  }
+  50% {
+    top: 65%;
+    left: 60%;
+  }
+  75% {
+    top: 75%;
+    left: 40%;
+  }
+  100% {
+    top: 65%;
+    left: 20%;
+  }
 }

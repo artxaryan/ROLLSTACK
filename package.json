@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@sams-t-app/env": "workspace:*",
+    "date-fns": "^4.1.0",
     "dotenv": "catalog:",
     "zod": "catalog:"
   },

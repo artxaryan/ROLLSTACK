@@ -1,16 +1,14 @@
-import { auth } from "@sams-t-app/auth";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+
+import { getSession } from "@/lib/check-role";
 
 import { JoinClassForm } from "./join-class-form";
 
 export default async function JoinClassPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getSession();
 
   if (!session?.user) {
-    redirect("/login");
+    redirect("/login" as never);
   }
 
   return (

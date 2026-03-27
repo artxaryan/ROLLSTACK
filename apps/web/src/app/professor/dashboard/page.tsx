@@ -1,20 +1,16 @@
-import { auth } from "@sams-t-app/auth";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { requireProfessor } from "@/lib/check-role";
+import { getSession, requireProfessor } from "@/lib/check-role";
 
 import { ProfessorDashboardContent } from "./professor-dashboard-content";
 
 export default async function ProfessorDashboardPage() {
   await requireProfessor();
 
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getSession();
 
   if (!session?.user) {
-    redirect("/login");
+    redirect("/login" as never);
   }
 
   return (
