@@ -232,6 +232,46 @@ export const classRouter = router({
       return { success: true };
     }),
 
+  removeStudent: protectedProcedure
+    .input(z.object({ enrollmentId: z.string(), classId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // Verify professor owns this class
+      const classData = await ctx.db
+        .select()
+        .from(classTable)
+        .where(
+          and(
+            eq(classTable.id, input.classId),
+            eq(classTable.professorId, ctx.session.user.id)
+          )
+        )
+        .limit(1);
+
+      if (classData.length === 0) {
+        throw new Error("Class not found");
+      }
+
+      // Delete the enrollment
+      await ctx.db
+        .delete(studentEnrollment)
+        .where(
+          and(
+            eq(studentEnrollment.id, input.enrollmentId),
+            eq(studentEnrollment.classId, input.classId)
+          )
+        );
+
+      // Decrement student count
+      await ctx.db
+        .update(classTable)
+        .set({
+          studentCount: sql`${classTable.studentCount} - 1`,
+        })
+        .where(eq(classTable.id, input.classId));
+
+      return { success: true };
+    }),
+
   getStudents: protectedProcedure
     .input(z.object({ classId: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -374,7 +414,10 @@ export const classRouter = router({
         classId: z.string(),
         studentId: z.string(),
         status: z.enum(["present", "absent"]),
-        date: z.string().datetime().optional(),
+        date: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -421,7 +464,7 @@ export const classRouter = router({
         .where(
           and(
             eq(cancelledClass.classId, input.classId),
-            sql`date_trunc('day', ${cancelledClass.date}) = date_trunc('day', ${attendanceDate})`
+            sql`date_trunc('day', ${cancelledClass.date}) = date_trunc('day', ${sql.raw(`'${attendanceDate.toISOString().split("T")[0]}'::date`)})`
           )
         )
         .limit(1);
@@ -439,7 +482,7 @@ export const classRouter = router({
           and(
             eq(attendance.classId, input.classId),
             eq(attendance.studentId, input.studentId),
-            sql`date_trunc('day', ${attendance.date}) = date_trunc('day', ${attendanceDate})`
+            sql`date_trunc('day', ${attendance.date}) = date_trunc('day', ${sql.raw(`'${attendanceDate.toISOString().split("T")[0]}'::date`)})`
           )
         )
         .limit(1);
@@ -465,6 +508,100 @@ export const classRouter = router({
       return { success: true };
     }),
 
+  saveBatchAttendance: protectedProcedure
+    .input(
+      z.object({
+        classId: z.string(),
+        attendanceRecords: z.array(
+          z.object({
+            studentId: z.string(),
+            status: z.enum(["present", "absent"]),
+          })
+        ),
+        date: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Check if semester dates are configured
+      const classData = await ctx.db
+        .select({
+          semesterStartDate: classTable.semesterStartDate,
+          semesterEndDate: classTable.semesterEndDate,
+        })
+        .from(classTable)
+        .where(eq(classTable.id, input.classId))
+        .limit(1);
+
+      if (classData.length === 0) {
+        throw new Error("Class not found");
+      }
+
+      const classInfo = classData[0];
+      if (!classInfo) {
+        throw new Error("Class not found");
+      }
+
+      if (!(classInfo.semesterStartDate && classInfo.semesterEndDate)) {
+        throw new Error(
+          "Please configure semester dates before taking attendance"
+        );
+      }
+
+      // Use provided date or default to today
+      const dateStr = input.date ?? new Date().toISOString().split("T")[0];
+
+      // Check if date is in the future
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const attendanceDate = new Date(`${dateStr}T00:00:00`);
+      if (attendanceDate > today) {
+        throw new Error("Cannot mark attendance for future dates");
+      }
+
+      // Check if class is cancelled for this date
+      const cancelledClassData = await ctx.db
+        .select()
+        .from(cancelledClass)
+        .where(
+          and(
+            eq(cancelledClass.classId, input.classId),
+            sql`date_trunc('day', ${cancelledClass.date}) = date_trunc('day', ${sql.raw(`'${dateStr}'::date`)})`
+          )
+        )
+        .limit(1);
+
+      if (cancelledClassData.length > 0) {
+        throw new Error("Cannot mark attendance for a cancelled class");
+      }
+
+      // Delete any existing records for this class on this day,
+      // then insert fresh ones. Separate queries work with neon-http driver.
+      await ctx.db
+        .delete(attendance)
+        .where(
+          and(
+            eq(attendance.classId, input.classId),
+            sql`date_trunc('day', ${attendance.date}) = date_trunc('day', ${sql.raw(`'${dateStr}'::date`)})`
+          )
+        );
+
+      const values = input.attendanceRecords.map((record) => ({
+        id: crypto.randomUUID(),
+        classId: input.classId,
+        studentId: record.studentId,
+        status: record.status,
+        markedBy: ctx.session.user.id,
+        date: attendanceDate,
+      }));
+
+      await ctx.db.insert(attendance).values(values);
+
+      return { success: true, count: input.attendanceRecords.length };
+    }),
+
   getTodayAttendance: protectedProcedure
     .input(z.object({ classId: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -480,7 +617,7 @@ export const classRouter = router({
         .where(
           and(
             eq(attendance.classId, input.classId),
-            sql`date_trunc('day', ${attendance.date}) = date_trunc('day', ${today})`
+            sql`date_trunc('day', ${attendance.date}) = date_trunc('day', ${sql.raw(`'${today.toISOString().split("T")[0]}'::date`)})`
           )
         );
 
@@ -1014,7 +1151,7 @@ export const classRouter = router({
     .input(
       z.object({
         classId: z.string(),
-        date: z.string().datetime(),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -1072,7 +1209,7 @@ export const classRouter = router({
         .where(
           and(
             eq(attendance.classId, input.classId),
-            sql`date_trunc('day', ${attendance.date}) = date_trunc('day', ${cancelDate})`
+            sql`date_trunc('day', ${attendance.date}) = date_trunc('day', ${sql.raw(`'${cancelDate.toISOString().split("T")[0]}'::date`)})`
           )
         )
         .limit(1);
@@ -1093,7 +1230,7 @@ export const classRouter = router({
     }),
 
   getCancelledClassesByDate: protectedProcedure
-    .input(z.object({ date: z.string().datetime() }))
+    .input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
     .query(async ({ ctx, input }) => {
       const queryDate = new Date(input.date);
       queryDate.setHours(0, 0, 0, 0);
@@ -1125,7 +1262,7 @@ export const classRouter = router({
     .input(
       z.object({
         classId: z.string(),
-        date: z.string().datetime(),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -1154,7 +1291,7 @@ export const classRouter = router({
     .input(
       z.object({
         classId: z.string(),
-        date: z.string().datetime(),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -1170,7 +1307,7 @@ export const classRouter = router({
         .where(
           and(
             eq(attendance.classId, input.classId),
-            sql`date_trunc('day', ${attendance.date}) = date_trunc('day', ${queryDate})`
+            sql`date_trunc('day', ${attendance.date}) = date_trunc('day', ${sql.raw(`'${queryDate.toISOString().split("T")[0]}'::date`)})`
           )
         );
 

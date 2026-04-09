@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   LogOut,
   Plus,
-  Settings,
   User,
 } from "lucide-react";
 import Link from "next/link";
@@ -53,7 +52,6 @@ const navigation = [
   },
   { name: "My Classes", href: "/student/classes", icon: GraduationCap },
   { name: "Calendar", href: "/student/calendar", icon: Calendar },
-  { name: "Settings", href: "/student/settings", icon: Settings },
 ] as const;
 
 interface EnrolledClass {
@@ -180,7 +178,11 @@ export function StudentDashboardContent({
   const [rollNumber, setRollNumber] = useState("");
 
   const enrolledClassesQuery = useQuery(
-    trpc.class.getEnrolledClasses.queryOptions()
+    trpc.class.getEnrolledClasses.queryOptions(undefined, {
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      staleTime: 0,
+    })
   );
 
   const joinClassMutation = useMutation({
@@ -283,16 +285,7 @@ export function StudentDashboardContent({
                 </Link>
               );
             }
-            return (
-              <Link
-                className={baseClassName}
-                href="/student/settings"
-                key={item.name}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.name}
-              </Link>
-            );
+            return null;
           })}
         </nav>
       </aside>

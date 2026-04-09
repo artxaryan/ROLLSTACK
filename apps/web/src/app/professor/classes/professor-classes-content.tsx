@@ -7,7 +7,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   Plus,
-  Settings,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -53,7 +53,6 @@ const navigation = [
   },
   { name: "Classes", href: "/professor/classes" as const, icon: GraduationCap },
   { name: "Calendar", href: "/professor/calendar" as const, icon: Calendar },
-  { name: "Settings", href: "/professor/settings" as const, icon: Settings },
 ];
 
 function ClassesGrid({
@@ -61,6 +60,7 @@ function ClassesGrid({
   classes,
   onCopyCode,
   onCreateClick,
+  onDeleteClass,
 }: {
   isLoading: boolean;
   classes:
@@ -74,6 +74,7 @@ function ClassesGrid({
     | undefined;
   onCopyCode: (code: string) => void;
   onCreateClick: () => void;
+  onDeleteClass: (id: string, className: string) => void;
 }) {
   if (isLoading) {
     return (
@@ -112,7 +113,7 @@ function ClassesGrid({
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {classes.map((classItem) => (
         <Card
-          className="group cursor-pointer rounded-lg border transition-all hover:shadow-md"
+          className="group rounded-lg border transition-all hover:shadow-md"
           key={classItem.id}
         >
           <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5">
@@ -139,16 +140,26 @@ function ClassesGrid({
             <Button
               className="flex-1 rounded-full transition-all duration-200 hover:bg-primary hover:text-primary-foreground active:scale-[0.98]"
               onClick={() => onCopyCode(classItem.classCode)}
+              size="sm"
               variant="outline"
             >
               <Copy className="mr-2 h-4 w-4" />
               Copy Code
             </Button>
             <Button
+              className="rounded-full p-2"
+              onClick={() => onDeleteClass(classItem.id, classItem.className)}
+              size="sm"
+              variant="outline"
+            >
+              <Trash2 className="h-4 w-4 text-red-500" />
+            </Button>
+            <Button
               className="flex-1 rounded-full transition-all duration-200 hover:shadow-md hover:brightness-110 active:scale-[0.98]"
               onClick={() => {
                 window.location.href = `/professor/class/${classItem.id}`;
               }}
+              size="sm"
             >
               Open Class
             </Button>
@@ -167,6 +178,10 @@ export function ProfessorClassesContent({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [className, setClassName] = useState("");
   const [subject, setSubject] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const classesQuery = useQuery(trpc.class.getAll.queryOptions());
   const createClassMutation = useMutation({
@@ -178,12 +193,24 @@ export function ProfessorClassesContent({
       setSubject("");
       queryClient
         .invalidateQueries(trpc.class.getAll.queryFilter())
-        .catch(() => {
-          // Silently handle cache invalidation errors
-        });
+        .catch(() => {});
     },
     onError: (error) => {
       toast.error(error.message || "Failed to create class");
+    },
+  });
+
+  const deleteClassMutation = useMutation({
+    ...trpc.class.delete.mutationOptions(),
+    onSuccess: () => {
+      toast.success("Class deleted successfully");
+      setDeleteConfirm(null);
+      queryClient
+        .invalidateQueries(trpc.class.getAll.queryFilter())
+        .catch(() => {});
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to delete class");
     },
   });
 
@@ -259,16 +286,7 @@ export function ProfessorClassesContent({
                 </Link>
               );
             }
-            return (
-              <Link
-                className={baseClassName}
-                href="/professor/settings"
-                key={item.name}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.name}
-              </Link>
-            );
+            return null;
           })}
         </nav>
       </aside>
@@ -281,7 +299,7 @@ export function ProfessorClassesContent({
             <div>
               <h1 className="font-semibold text-2xl">All Classes</h1>
               <p className="text-muted-foreground text-sm">
-                Manage all your classes and view their details
+                Manage all your classes, view details, and delete unwanted ones
               </p>
             </div>
             <Button
@@ -299,6 +317,7 @@ export function ProfessorClassesContent({
             isLoading={classesQuery.isLoading}
             onCopyCode={handleCopyCode}
             onCreateClick={() => setIsCreateModalOpen(true)}
+            onDeleteClass={(id, name) => setDeleteConfirm({ id, name })}
           />
         </div>
       </main>
@@ -354,6 +373,47 @@ export function ProfessorClassesContent({
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Class Confirmation Dialog */}
+      <Dialog
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        open={!!deleteConfirm}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Class</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete{" "}
+              <span className="font-medium text-foreground">
+                {deleteConfirm?.name}
+              </span>
+              ? This will permanently remove the class, all student enrollments,
+              schedules, and attendance records. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              onClick={() => setDeleteConfirm(null)}
+              type="button"
+              variant="outline"
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={deleteClassMutation.isPending}
+              onClick={() => {
+                if (deleteConfirm) {
+                  deleteClassMutation.mutate({ id: deleteConfirm.id });
+                }
+              }}
+              type="button"
+              variant="destructive"
+            >
+              {deleteClassMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

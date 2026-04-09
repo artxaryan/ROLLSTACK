@@ -13,7 +13,6 @@ import {
   GraduationCap,
   LayoutDashboard,
   Plus,
-  Settings,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -52,7 +51,6 @@ const navigation = [
   },
   { name: "Classes", href: "/professor/classes" as const, icon: GraduationCap },
   { name: "Calendar", href: "/professor/calendar" as const, icon: Calendar },
-  { name: "Settings", href: "/professor/settings" as const, icon: Settings },
 ];
 
 const DAY_NAMES = [

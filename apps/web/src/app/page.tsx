@@ -1,120 +1,288 @@
 "use client";
 
+import {
+  ArrowRight,
+  BarChart3,
+  BookOpen,
+  Calendar,
+  CheckCircle2,
+  GraduationCap,
+  Shield,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+
+const title = "ROLLSTACK";
+
+const features = [
+  {
+    icon: BarChart3,
+    title: "Real-time Analytics",
+    description:
+      "Track attendance patterns with powerful dashboards and insights",
+  },
+  {
+    icon: Calendar,
+    title: "Smart Scheduling",
+    description:
+      "Automated class schedules with intelligent calendar integration",
+  },
+  {
+    icon: Users,
+    title: "Student Management",
+    description:
+      "Effortlessly manage enrollments, roll numbers, and student profiles",
+  },
+  {
+    icon: Shield,
+    title: "Secure & Private",
+    description: "Enterprise-grade security with role-based access control",
+  },
+  {
+    icon: BookOpen,
+    title: "Attendance Tracking",
+    description:
+      "Mark and track attendance with just a few clicks. Never miss a record",
+  },
+  {
+    icon: GraduationCap,
+    title: "Professor Dashboard",
+    description: "Complete control over your classes, students, and reports",
+  },
+];
+
+const problemsSolved = [
+  {
+    title: "No More Paper Registers",
+    description:
+      "Eliminate handwritten attendance sheets. Digital records are instant, searchable, and never lost.",
+  },
+  {
+    title: "Save Hours Every Week",
+    description:
+      "Mark attendance in seconds, not minutes. Generate reports with a single click.",
+  },
+  {
+    title: "Never Lose Student Data",
+    description:
+      "All attendance records are securely stored in the cloud. Access them from anywhere, anytime.",
+  },
+  {
+    title: "Know Your Class Better",
+    description:
+      "Visual analytics show attendance trends, helping you identify struggling students early.",
+  },
+];
+
+const steps = [
+  {
+    step: "01",
+    title: "Create Your Account",
+    description:
+      "Sign up as a professor and create your institution profile in seconds",
+  },
+  {
+    step: "02",
+    title: "Add Classes & Students",
+    description:
+      "Import or add students, create classes, and set up schedules effortlessly",
+  },
+  {
+    step: "03",
+    title: "Start Tracking",
+    description:
+      "Mark attendance with one click. View analytics and generate reports instantly",
+  },
+];
 
 export default function Home() {
   const router = useRouter();
-  const [mousePosition, setMousePosition] = useState({ x: 50, y: 50 });
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    const x = (e.clientX / window.innerWidth) * 100;
-    const y = (e.clientY / window.innerHeight) * 100;
-    setMousePosition({ x, y });
-  }, []);
+  const [displayedText, setDisplayedText] = useState("");
+  const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, [handleMouseMove]);
+    if (index < title.length) {
+      const timeout = setTimeout(() => {
+        setDisplayedText((prev: string) => prev + title[index]);
+        setIndex(index + 1);
+      }, 100);
+      return () => clearTimeout(timeout);
+    }
+  }, [index]);
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[#0a0a0f]">
-      <div className="absolute inset-0">
-        <div
-          className="absolute -top-32 -left-32 h-96 w-96 rounded-full blur-3xl"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(139, 92, 246, 0.5) 0%, transparent 70%)",
-            transform: `translate(${mousePosition.x * 0.2}px, ${mousePosition.y * 0.2}px)`,
-            animation: "pulse 4s ease-in-out infinite",
-          }}
-        />
-        <div
-          className="absolute -right-32 -bottom-32 h-96 w-96 rounded-full blur-3xl"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(59, 130, 246, 0.5) 0%, transparent 70%)",
-            transform: `translate(${-mousePosition.x * 0.2}px, ${-mousePosition.y * 0.2}px)`,
-            animation: "pulse 4s ease-in-out infinite 1s",
-          }}
-        />
-        <div
-          className="absolute top-1/3 left-1/3 h-64 w-64 rounded-full blur-3xl"
-          style={{
-            background: `radial(circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(168, 85, 247, 0.3) 0%, transparent 60%)`,
-            transform: `translate(${mousePosition.x * 0.1}px, ${-mousePosition.y * 0.1}px)`,
-            animation: "pulse 4s ease-in-out infinite 2s",
-          }}
-        />
-        <div
-          className="absolute top-1/4 right-1/4 h-48 w-48 rounded-full opacity-30 blur-3xl"
-          style={{
-            background: `radial(circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(255, 255, 255, 0.2) 0%, transparent 50%)`,
-            transform: `translate(${-mousePosition.x * 0.15}px, ${mousePosition.y * 0.1}px)`,
-          }}
-        />
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMtOS45NDEgMC0xOCA4LjA1OS0xOCAxOHM4LjA1OSAxOCAxOCAxOCAxOC04LjA1OSAxOC0xOC04LjA1OS0xOC0xOC0xOHptMCAzMmMtNy43MzIgMC0xNC02LjI2OC0xNC0xNHM2LjI2OC0xNCAxNC0xNCAxNCA2LjI2OCAxNCAxNC02LjI2OCAxNC0xNCAxNHoiIGZpbGw9IiMyMDIyMzciIGZpbGwtb3BhY2l0eT0iLjAyIi8+PC9nPjwvc3ZnPg==')] opacity-30" />
-      </div>
-
-      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4">
+    <div className="relative min-h-[calc(100vh-65px)] w-full overflow-x-hidden pb-12">
+      {/* Hero Section */}
+      <section className="relative z-10 flex min-h-[50vh] flex-col items-center justify-center px-4 pt-8">
         <div className="text-center">
-          <h1 className="mb-6 font-bold text-6xl text-white tracking-tight md:text-8xl">
-            <span className="bg-gradient-to-r from-violet-400 via-indigo-400 to-blue-400 bg-clip-text text-transparent">
-              SAMS
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-4 py-2">
+            <span className="flex h-2 w-2 animate-pulse rounded-full bg-green-400" />
+            <span className="text-sm text-violet-300">
+              Reduce the Attendance hassle
             </span>
-          </h1>
-          <p className="mx-auto mb-8 max-w-xl text-lg text-zinc-400 md:text-xl">
-            Student Attendance Management System
-          </p>
-          <p className="mx-auto mb-12 max-w-lg text-base text-zinc-500">
-            Streamline your classroom attendance with ease. Track, manage, and
-            analyze student attendance all in one place.
-          </p>
-          <button
-            className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-8 py-4 font-semibold text-white transition-all duration-300 hover:from-violet-500 hover:to-indigo-500 hover:shadow-lg hover:shadow-violet-500/25 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2 focus:ring-offset-zinc-900"
-            onClick={() => router.push("/login")}
-            type="button"
-          >
-            <span>Get Started</span>
-            <svg
-              aria-hidden="true"
-              className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M17 8l4 4m0 0l-4 4m4-4H3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-              />
-            </svg>
-          </button>
-        </div>
+          </div>
 
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
-          <div className="flex flex-col items-center gap-2 text-zinc-600">
-            <span className="text-sm">Scroll to learn more</span>
-            <div aria-hidden="true" className="h-6 w-6 animate-bounce">
-              <svg
-                aria-hidden="true"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+          <h1 className="mb-12 font-bold text-5xl text-foreground tracking-tight md:text-8xl lg:text-9xl">
+            {displayedText}
+          </h1>
+
+          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <button
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-medium text-primary-foreground transition-all hover:shadow-lg hover:brightness-110"
+              onClick={() => router.push("/login?mode=signup")}
+              type="button"
+            >
+              <span>Get started</span>
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-6 py-2.5 font-medium text-foreground transition-all hover:bg-accent"
+              onClick={() => router.push("/login")}
+              type="button"
+            >
+              Sign In
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Problems Solved Section */}
+      <section className="px-4 py-16">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-10 text-center">
+            <h2 className="mb-3 font-semibold text-2xl text-foreground md:text-3xl">
+              Why Educators Choose{" "}
+              <span className="text-primary">ROLLSTACK</span>
+            </h2>
+            <p className="text-muted-foreground">
+              We solve the everyday problems that waste your time
+            </p>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            {problemsSolved.map((problem) => (
+              <div
+                className="group relative overflow-hidden rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/30 hover:shadow-lg"
+                key={problem.title}
               >
-                <path
-                  d="M19 14l-7 7m0 0l-7-7m7 7V3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-              </svg>
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="font-semibold text-foreground text-lg">
+                    {problem.title}
+                  </h3>
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  {problem.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="px-4 py-16">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-10 text-center">
+            <h2 className="mb-3 font-semibold text-2xl text-foreground md:text-3xl">
+              How It Works
+            </h2>
+            <p className="text-muted-foreground">
+              Get started in minutes with our simple three-step process
+            </p>
+          </div>
+
+          <div className="grid gap-8 md:grid-cols-3">
+            {steps.map((item, index) => (
+              <div className="relative text-center" key={item.step}>
+                <div className="mb-4 font-bold text-6xl text-primary/20">
+                  {item.step}
+                </div>
+                <h3 className="mb-2 font-semibold text-foreground text-lg">
+                  {item.title}
+                </h3>
+                <p className="text-muted-foreground text-sm">
+                  {item.description}
+                </p>
+                {index < 2 && (
+                  <div className="absolute top-4 hidden md:right-[-1.5rem] md:block">
+                    <ArrowRight className="h-5 w-5 text-muted-foreground/50" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="px-4 py-16">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-10 text-center">
+            <h2 className="mb-3 font-semibold text-2xl text-foreground md:text-3xl">
+              Powerful Features
+            </h2>
+            <p className="text-muted-foreground">
+              Everything you need to manage attendance effortlessly
+            </p>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature) => (
+              <div
+                className="group relative overflow-hidden rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/30 hover:shadow-lg"
+                key={feature.title}
+              >
+                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
+                  <feature.icon className="h-5 w-5 text-primary" />
+                </div>
+                <h3 className="mb-2 font-semibold text-foreground">
+                  {feature.title}
+                </h3>
+                <p className="text-muted-foreground text-sm">
+                  {feature.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="px-4 py-16">
+        <div className="mx-auto max-w-3xl">
+          <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 to-indigo-500/5 p-8 text-center md:p-12">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(139,92,246,0.1)_0%,transparent_70%)]" />
+
+            <div className="relative z-10">
+              <div className="mb-4 flex justify-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/20">
+                  <Sparkles className="h-7 w-7 text-primary" />
+                </div>
+              </div>
+              <h2 className="mb-4 font-semibold text-2xl text-foreground md:text-3xl">
+                Ready to transform your attendance management?
+              </h2>
+              <p className="mx-auto mb-6 max-w-lg text-muted-foreground">
+                Join thousands of educational institutions already using
+                ROLLSTACK to streamline their operations.
+              </p>
+              <button
+                className="inline-flex items-center gap-2 rounded-full bg-foreground px-8 py-3 font-semibold text-background transition-all hover:scale-105 hover:shadow-lg hover:shadow-primary/20"
+                onClick={() => router.push("/login?mode=signup")}
+                type="button"
+              >
+                <span>Get Started</span>
+                <ArrowRight className="h-5 w-5" />
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

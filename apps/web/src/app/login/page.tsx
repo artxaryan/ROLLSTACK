@@ -1,12 +1,15 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { SignInForm } from "@/components/sign-in-form";
 import SignUpForm from "@/components/sign-up-form";
 
 export default function LoginPage() {
-  const [showSignIn, setShowSignIn] = useState(false);
+  const searchParams = useSearchParams();
+  const mode = searchParams.get("mode");
+  const [showSignIn, setShowSignIn] = useState(mode !== "signup");
   const [mousePosition, setMousePosition] = useState({ x: 50, y: 50 });
 
   const handleMouseMove = useCallback((e: MouseEvent) => {

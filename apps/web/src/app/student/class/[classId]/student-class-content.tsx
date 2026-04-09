@@ -8,7 +8,6 @@ import {
   Clock,
   GraduationCap,
   LayoutDashboard,
-  Settings,
   ShieldAlert,
   Users,
   XCircle,
@@ -47,7 +46,6 @@ const navigation = [
     icon: GraduationCap,
   },
   { name: "Calendar", href: "/student/calendar" as const, icon: Calendar },
-  { name: "Settings", href: "/student/settings" as const, icon: Settings },
 ];
 
 function StatCard({
@@ -152,7 +150,10 @@ export function StudentClassContent({ classId }: StudentClassContentProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const statsQuery = useQuery(
-    trpc.class.getStudentClassStats.queryOptions({ classId })
+    trpc.class.getStudentClassStats.queryOptions(
+      { classId },
+      { refetchOnMount: true, refetchOnWindowFocus: true, staleTime: 0 }
+    )
   );
 
   const data = statsQuery.data;

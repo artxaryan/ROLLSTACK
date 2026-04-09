@@ -2,7 +2,12 @@ import type { AppRouter } from "@sams-t-app/api/routers/index";
 
 import { env } from "@sams-t-app/env/web";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
-import { createTRPCClient, httpBatchLink } from "@trpc/client";
+import {
+  createTRPCClient,
+  httpBatchLink,
+  httpLink,
+  splitLink,
+} from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { toast } from "sonner";
 
@@ -12,7 +17,7 @@ export const queryClient = new QueryClient({
       toast.error(error.message, {
         action: {
           label: "retry",
-          onClick: query.invalidate,
+          onClick: () => query.invalidate(),
         },
       });
     },
@@ -21,14 +26,26 @@ export const queryClient = new QueryClient({
 
 export const trpcClient = createTRPCClient<AppRouter>({
   links: [
-    httpBatchLink({
-      url: `${env.NEXT_PUBLIC_SERVER_URL}/trpc`,
-      fetch(url, options) {
-        return fetch(url, {
-          ...options,
-          credentials: "include",
-        });
-      },
+    splitLink({
+      condition: (op) => op.type === "mutation",
+      true: httpLink({
+        url: `${env.NEXT_PUBLIC_SERVER_URL}/trpc`,
+        fetch(url, options) {
+          return fetch(url, {
+            ...options,
+            credentials: "include",
+          });
+        },
+      }),
+      false: httpBatchLink({
+        url: `${env.NEXT_PUBLIC_SERVER_URL}/trpc`,
+        fetch(url, options) {
+          return fetch(url, {
+            ...options,
+            credentials: "include",
+          });
+        },
+      }),
     }),
   ],
 });

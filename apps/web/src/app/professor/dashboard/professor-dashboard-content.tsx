@@ -1,13 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Calendar,
-  GraduationCap,
-  LayoutDashboard,
-  Plus,
-  Settings,
-} from "lucide-react";
+import { Calendar, GraduationCap, LayoutDashboard, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -52,7 +46,6 @@ const navigation = [
   },
   { name: "Classes", href: "/professor/classes" as const, icon: GraduationCap },
   { name: "Calendar", href: "/professor/calendar" as const, icon: Calendar },
-  { name: "Settings", href: "/professor/settings" as const, icon: Settings },
 ];
 
 const DAY_NAMES = [
@@ -193,6 +186,7 @@ export function ProfessorDashboardContent({
   const [subject, setSubject] = useState("");
 
   const todayClassesQuery = useQuery(trpc.class.getTodayClasses.queryOptions());
+
   const createClassMutation = useMutation({
     ...trpc.class.create.mutationOptions(),
     onSuccess: () => {
@@ -201,10 +195,8 @@ export function ProfessorDashboardContent({
       setClassName("");
       setSubject("");
       queryClient
-        .invalidateQueries(trpc.class.getAll.queryFilter())
-        .catch(() => {
-          // Silently handle cache invalidation errors
-        });
+        .invalidateQueries(trpc.class.getTodayClasses.queryFilter())
+        .catch(() => {});
     },
     onError: (error) => {
       toast.error(error.message || "Failed to create class");
@@ -276,23 +268,13 @@ export function ProfessorDashboardContent({
                 </Link>
               );
             }
-            return (
-              <Link
-                className={baseClassName}
-                href="/professor/settings"
-                key={item.name}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.name}
-              </Link>
-            );
+            return null;
           })}
         </nav>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
-        {/* Page Content */}
         <div className="p-6">
           {/* Header */}
           <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

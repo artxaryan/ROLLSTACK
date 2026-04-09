@@ -1,8 +1,9 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { addDays, addMonths, format, subDays, subMonths } from "date-fns";
+import { addDays, addMonths, subDays, subMonths } from "date-fns";
 import {
+  AlertTriangle,
   ArrowLeft,
   Calendar,
   Check,
@@ -10,13 +11,13 @@ import {
   Copy,
   GraduationCap,
   LayoutDashboard,
+  MoreVertical,
   Plus,
-  Settings,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   DayView,
@@ -40,6 +41,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -54,7 +61,6 @@ const navigation = [
   { name: "Dashboard", href: "/professor/dashboard", icon: LayoutDashboard },
   { name: "Classes", href: "/professor/classes", icon: GraduationCap },
   { name: "Calendar", href: "/professor/calendar", icon: Calendar },
-  { name: "Settings", href: "/professor/settings", icon: Settings },
 ];
 
 const DAY_NAMES = [
@@ -548,13 +554,43 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+  const [removeConfirmStudent, setRemoveConfirmStudent] = useState<{
+    id: string;
+    name: string;
+    enrollmentId: string;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState("students");
-  const [presentStudents, setPresentStudents] = useState<Set<string>>(
-    new Set()
+
+  // Attendance date - stored as YYYY-MM-DD string to avoid timezone bugs
+  const [attendanceDate, setAttendanceDate] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  });
+
+  // Present students keyed by date - persists across date changes
+  const [presentStudentsByDate, setPresentStudentsByDate] = useState<
+    Record<string, Set<string>>
+  >({});
+
+  // Helper to get present students for current date
+  const getPresentStudents = useCallback(() => {
+    return presentStudentsByDate[attendanceDate] || new Set();
+  }, [presentStudentsByDate, attendanceDate]);
+
+  // Helper to set present students for current date
+  const setPresentStudentsForDate = useCallback(
+    (students: Set<string>) => {
+      setPresentStudentsByDate((prev) => ({
+        ...prev,
+        [attendanceDate]: students,
+      }));
+    },
+    [attendanceDate]
   );
 
-  // Attendance date state
-  const [attendanceDate, setAttendanceDate] = useState<Date>(new Date());
+  // Keep a ref for current present students to use in handlers
+  const presentStudentsRef = useRef(presentStudentsByDate);
+  presentStudentsRef.current = presentStudentsByDate;
 
   // Semester configuration state
   const [isSemesterModalOpen, setIsSemesterModalOpen] = useState(false);
@@ -562,60 +598,133 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
   const [semesterEndDate, setSemesterEndDate] = useState("");
 
   const classQuery = useQuery(trpc.class.getById.queryOptions({ id: classId }));
-
   const classData = classQuery.data;
-
-  // Check if semester dates are configured
   const semesterConfigured =
     classData?.semesterStartDate && classData?.semesterEndDate;
 
-  // Show semester modal when class data is loaded but dates are not set
   useEffect(() => {
     if (classData && !semesterConfigured) {
       setIsSemesterModalOpen(true);
     }
   }, [classData, semesterConfigured]);
 
-  // Update class mutation for semester dates
+  // Students list
+  const studentsQuery = useQuery(
+    trpc.class.getStudents.queryOptions({ classId })
+  );
+  const students = studentsQuery.data ?? [];
+
+  const filteredStudents = students.filter(
+    (student) =>
+      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const sortedStudents = [...filteredStudents].sort((a, b) =>
+    a.rollNumber.localeCompare(b.rollNumber)
+  );
+
+  // Schedule
+  const scheduleQuery = useQuery(
+    trpc.class.getSchedule.queryOptions({ classId })
+  );
+
+  // Existing attendance for the selected date
+  const { data: existingAttendance } = useQuery(
+    trpc.class.getAttendanceByDate.queryOptions({
+      classId,
+      date: attendanceDate,
+    })
+  );
+
+  const { data: cancellationStatus } = useQuery(
+    trpc.class.getClassCancellationStatus.queryOptions({
+      classId,
+      date: attendanceDate,
+    })
+  );
+
+  // Load existing attendance checkboxes when date changes or new data arrives
+  // Only update from server if we don't have local state for this date
+  useEffect(() => {
+    if (existingAttendance && existingAttendance.length > 0) {
+      const localState = presentStudentsByDate[attendanceDate];
+      if (localState === undefined) {
+        // No local state for this date, load from server
+        setPresentStudentsForDate(
+          new Set(
+            existingAttendance
+              .filter((r) => r.status === "present")
+              .map((r) => r.studentId)
+          )
+        );
+      }
+    } else if (presentStudentsByDate[attendanceDate] === undefined) {
+      // No server data and no local state - clear
+      setPresentStudentsForDate(new Set());
+    }
+  }, [
+    existingAttendance,
+    attendanceDate,
+    presentStudentsByDate,
+    setPresentStudentsForDate,
+  ]);
+
+  const averageAttendanceQuery = useQuery(
+    trpc.class.getAverageAttendance.queryOptions({ classId })
+  );
+  const averageAttendance = averageAttendanceQuery.data?.average ?? 0;
+
+  const handleCopyCode = () => {
+    if (!classData) {
+      return;
+    }
+    navigator.clipboard
+      .writeText(classData.classCode)
+      .then(() => toast.success("Class code copied to clipboard"))
+      .catch(() => toast.error("Failed to copy code"));
+  };
+
+  const toggleStudentAttendance = useCallback(
+    (studentId: string) => {
+      const current = getPresentStudents();
+      const next = new Set(current);
+      next.has(studentId) ? next.delete(studentId) : next.add(studentId);
+      setPresentStudentsForDate(next);
+    },
+    [getPresentStudents, setPresentStudentsForDate]
+  );
+
+  const selectAllStudents = useCallback(() => {
+    setPresentStudentsForDate(new Set(sortedStudents.map((s) => s.id)));
+  }, [sortedStudents, setPresentStudentsForDate]);
+
+  const clearAllStudents = useCallback(() => {
+    setPresentStudentsForDate(new Set());
+  }, [setPresentStudentsForDate]);
+
+  // Semester config mutation
   const updateClassMutation = useMutation({
     ...trpc.class.update.mutationOptions(),
     onSuccess: () => {
       toast.success("Semester dates configured successfully");
       setIsSemesterModalOpen(false);
-      queryClient
-        .invalidateQueries(trpc.class.getById.queryFilter({ id: classId }))
-        .catch(() => {
-          // Silently handle cache invalidation errors
-        });
+      queryClient.invalidateQueries(
+        trpc.class.getById.queryFilter({ id: classId })
+      );
     },
     onError: (error) => {
       toast.error(error.message || "Failed to configure semester dates");
     },
   });
 
-  // Mark attendance mutation
-  const markAttendanceMutation = useMutation({
-    ...trpc.class.markAttendance.mutationOptions(),
+  // Save attendance mutation - don't invalidate to keep local state
+  const saveAttendanceMutation = useMutation({
+    ...trpc.class.saveBatchAttendance.mutationOptions(),
     onSuccess: () => {
-      toast.success("Attendance saved successfully");
-      // Invalidate attendance queries
-      queryClient
-        .invalidateQueries(
-          trpc.class.getAttendanceByDate.queryFilter({
-            classId,
-            date: attendanceDate.toISOString().split("T")[0],
-          })
-        )
-        .catch(() => {
-          // Silently handle cache invalidation errors
-        });
-      queryClient
-        .invalidateQueries(
-          trpc.class.getAverageAttendance.queryFilter({ classId })
-        )
-        .catch(() => {
-          // Silently handle cache invalidation errors
-        });
+      // Just invalidate average attendance, not the date-specific one
+      queryClient.invalidateQueries(
+        trpc.class.getAverageAttendance.queryFilter({ classId })
+      );
     },
     onError: (error) => {
       toast.error(error.message || "Failed to save attendance");
@@ -626,25 +735,88 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
   const cancelClassMutation = useMutation({
     ...trpc.class.cancelClass.mutationOptions(),
     onSuccess: () => {
-      toast.success(
-        `Class cancelled for ${format(attendanceDate, "MMM d, yyyy")}`
+      toast.success(`Class cancelled for ${attendanceDate}`);
+      queryClient.invalidateQueries(
+        trpc.class.getClassCancellationStatus.queryFilter({
+          classId,
+          date: attendanceDate,
+        })
       );
-      queryClient
-        .invalidateQueries(
-          trpc.class.getClassCancellationStatus.queryFilter({
-            classId,
-            date: attendanceDate.toISOString().split("T")[0],
-          })
-        )
-        .catch(() => {
-          // Silently handle cache invalidation errors
-        });
     },
     onError: (error) => {
       toast.error(error.message || "Failed to cancel class");
     },
   });
 
+  // Remove student mutation
+  const removeStudentMutation = useMutation({
+    ...trpc.class.removeStudent.mutationOptions(),
+    onSuccess: () => {
+      toast.success("Student removed from class");
+      setRemoveConfirmStudent(null);
+      queryClient.invalidateQueries(
+        trpc.class.getStudents.queryFilter({ classId })
+      );
+      queryClient.invalidateQueries(
+        trpc.class.getById.queryFilter({ id: classId })
+      );
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to remove student");
+    },
+  });
+
+  // Save attendance
+  const handleSaveAttendance = () => {
+    if (!semesterConfigured) {
+      toast.error("Please configure semester dates first");
+      return;
+    }
+
+    if (isClassCancelled) {
+      toast.error("Cannot save attendance for a cancelled class");
+      return;
+    }
+
+    if (isDateInFuture) {
+      toast.error("Cannot mark attendance for future dates");
+      return;
+    }
+
+    if (sortedStudents.length === 0) {
+      toast.error("No students in this class");
+      return;
+    }
+
+    saveAttendanceMutation.mutate({
+      classId,
+      attendanceRecords: sortedStudents.map((student) => ({
+        studentId: student.id,
+        status: getPresentStudents().has(student.id) ? "present" : "absent",
+      })),
+      date: attendanceDate,
+    });
+  };
+
+  // Cancel class
+  const handleCancelClass = () => {
+    if (!semesterConfigured) {
+      toast.error("Please configure semester dates first");
+      return;
+    }
+
+    if (isDateInPast) {
+      toast.error("Cannot cancel past classes");
+      return;
+    }
+
+    cancelClassMutation.mutate({
+      classId,
+      date: attendanceDate,
+    });
+  };
+
+  // Semester config form
   const handleConfigureSemester = (e: React.FormEvent) => {
     e.preventDefault();
     if (!(semesterStartDate && semesterEndDate)) {
@@ -656,251 +828,47 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
     const endDate = new Date(semesterEndDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     if (startDate > today) {
       toast.error("Start date must be today or in the past");
       return;
     }
-
     if (endDate <= today) {
       toast.error("End date must be in the future");
       return;
     }
-
     if (endDate <= startDate) {
       toast.error("End date must be after start date");
       return;
     }
 
-    // Convert date strings to ISO datetime format
-    const startDateISO = new Date(semesterStartDate).toISOString();
-    const endDateISO = new Date(semesterEndDate).toISOString();
-
     updateClassMutation.mutate({
       id: classId,
-      semesterStartDate: startDateISO,
-      semesterEndDate: endDateISO,
+      semesterStartDate: new Date(semesterStartDate).toISOString(),
+      semesterEndDate: new Date(semesterEndDate).toISOString(),
     });
   };
 
-  const studentsQuery = useQuery(
-    trpc.class.getStudents.queryOptions({ classId })
-  );
+  const isClassCancelled = cancellationStatus?.isCancelled ?? false;
 
-  const averageAttendanceQuery = useQuery(
-    trpc.class.getAverageAttendance.queryOptions({ classId })
-  );
-
-  const scheduleQuery = useQuery(
-    trpc.class.getSchedule.queryOptions({ classId })
-  );
-
-  // Get attendance by date query
-  const attendanceByDateQuery = useQuery(
-    trpc.class.getAttendanceByDate.queryOptions({
-      classId,
-      date: attendanceDate.toISOString().split("T")[0],
-    })
-  );
-
-  // Get class cancellation status query
-  const cancellationStatusQuery = useQuery(
-    trpc.class.getClassCancellationStatus.queryOptions({
-      classId,
-      date: attendanceDate.toISOString().split("T")[0],
-    })
-  );
-
-  // Load existing attendance when date changes
-  useEffect(() => {
-    if (attendanceByDateQuery.data) {
-      const presentStudentIds = new Set(
-        attendanceByDateQuery.data
-          .filter((record) => record.status === "present")
-          .map((record) => record.studentId)
-      );
-      setPresentStudents(presentStudentIds);
-    }
-  }, [attendanceByDateQuery.data]);
-
-  // Reset present students when date changes (if no existing data)
-  useEffect(() => {
-    if (!(attendanceByDateQuery.data || attendanceByDateQuery.isLoading)) {
-      setPresentStudents(new Set());
-    }
-  }, [
-    attendanceDate,
-    attendanceByDateQuery.data,
-    attendanceByDateQuery.isLoading,
-  ]);
-
-  const students = studentsQuery.data ?? [];
-  const averageAttendance = averageAttendanceQuery.data?.average ?? 0;
-
-  const filteredStudents = students.filter(
-    (student) =>
-      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const sortedStudents = [...filteredStudents].sort((a, b) =>
-    a.rollNumber.localeCompare(b.rollNumber)
-  );
-
-  const handleCopyCode = () => {
-    if (!classData) {
-      return;
-    }
-    navigator.clipboard
-      .writeText(classData.classCode)
-      .then(() => {
-        toast.success("Class code copied to clipboard");
-      })
-      .catch(() => {
-        toast.error("Failed to copy code");
-      });
-  };
-
-  const toggleStudentAttendance = useCallback((studentId: string) => {
-    setPresentStudents((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(studentId)) {
-        newSet.delete(studentId);
-      } else {
-        newSet.add(studentId);
-      }
-      return newSet;
-    });
-  }, []);
-
-  const selectAllStudents = useCallback(() => {
-    const allIds = new Set(sortedStudents.map((s) => s.id));
-    setPresentStudents(allIds);
-    toast.success(`Marked all ${sortedStudents.length} students as present`);
-  }, [sortedStudents]);
-
-  const clearAllStudents = useCallback(() => {
-    setPresentStudents(new Set());
-    toast.success("Cleared all attendance marks");
-  }, []);
-
-  // Helper to check if a date is in the class schedule
-  const isDateInSchedule = useCallback(
-    (date: Date) => {
-      if (!scheduleQuery.data || scheduleQuery.data.length === 0) {
-        return false;
-      }
-      // Convert JS day (0=Sunday) to our format (0=Monday)
-      const jsDay = date.getDay();
-      const dayOfWeek = jsDay === 0 ? 6 : jsDay - 1;
-      return scheduleQuery.data.some((s) => s.dayOfWeek === dayOfWeek);
-    },
-    [scheduleQuery.data]
-  );
-
-  // Get the next valid date from the schedule
-  const getNextValidDate = useCallback(() => {
-    if (!scheduleQuery.data || scheduleQuery.data.length === 0) {
-      return new Date();
-    }
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    // Look for the next valid date within the next 30 days
-    for (let i = 0; i < 30; i++) {
-      const checkDate = new Date(today);
-      checkDate.setDate(today.getDate() - i);
-      if (isDateInSchedule(checkDate)) {
-        return checkDate;
-      }
-    }
-    return today;
-  }, [isDateInSchedule, scheduleQuery.data]);
-
-  const handleSaveAttendance = useCallback(() => {
-    if (!semesterConfigured) {
-      toast.error("Please configure semester dates first");
-      return;
-    }
-
-    if (cancellationStatusQuery.data?.isCancelled) {
-      toast.error("Cannot save attendance for a cancelled class");
-      return;
-    }
-
-    // Check if date is in the future
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (attendanceDate > today) {
-      toast.error("Cannot mark attendance for future dates");
-      return;
-    }
-
-    // Mark all students
-    const promises = sortedStudents.map((student) => {
-      const isPresent = presentStudents.has(student.id);
-      return markAttendanceMutation.mutateAsync({
-        classId,
-        studentId: student.id,
-        status: isPresent ? "present" : "absent",
-        date: attendanceDate.toISOString().split("T")[0],
-      });
-    });
-
-    Promise.all(promises).catch(() => {
-      // Errors handled in mutation onError
-    });
-  }, [
-    sortedStudents,
-    presentStudents,
-    classId,
-    attendanceDate,
-    markAttendanceMutation,
-    semesterConfigured,
-    cancellationStatusQuery.data?.isCancelled,
-  ]);
-
-  const handleCancelClass = useCallback(() => {
-    if (!semesterConfigured) {
-      toast.error("Please configure semester dates first");
-      return;
-    }
-
-    // Check if date is in the past
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (attendanceDate < today) {
-      toast.error("Cannot cancel past classes");
-      return;
-    }
-
-    cancelClassMutation.mutate({
-      classId,
-      date: attendanceDate.toISOString().split("T")[0],
-    });
-  }, [classId, attendanceDate, cancelClassMutation, semesterConfigured]);
-
-  const isClassCancelled = cancellationStatusQuery.data?.isCancelled ?? false;
-
-  // Check if selected date is in the past
-  const isDateInPast = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const dateToCheck = new Date(attendanceDate);
-    dateToCheck.setHours(0, 0, 0, 0);
-    return dateToCheck < today;
-  }, [attendanceDate]);
-
-  // Check if selected date is in the future
-  const isDateInFuture = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const dateToCheck = new Date(attendanceDate);
-    dateToCheck.setHours(0, 0, 0, 0);
-    return dateToCheck > today;
-  }, [attendanceDate]);
-
-  const presentCount = presentStudents.size;
+  const todayStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
+  const isDateInFuture = attendanceDate > todayStr;
+  const isDateInPast = attendanceDate < todayStr;
+  const presentCount = getPresentStudents().size;
   const totalCount = sortedStudents.length;
+
+  const formatDateForDisplay = (dateStr: string) => {
+    const d = new Date(`${dateStr}T00:00:00`);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
+  const formatDateLong = (dateStr: string) => {
+    const d = new Date(`${dateStr}T00:00:00`);
+    return d.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
 
   if (classQuery.isLoading) {
     return (
@@ -982,16 +950,7 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
                 </Link>
               );
             }
-            return (
-              <Link
-                className={baseClassName}
-                href="/professor/settings"
-                key={item.name}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.name}
-              </Link>
-            );
+            return null;
           })}
         </nav>
       </aside>
@@ -1142,28 +1101,15 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
                         </Label>
                         <Input
                           className="w-[150px]"
-                          disabled={
-                            attendanceByDateQuery.isLoading ||
-                            scheduleQuery.isLoading
-                          }
                           id="attendance-date"
                           onChange={(e) => {
-                            const newDate = e.target.valueAsDate;
-                            if (newDate) {
-                              if (isDateInSchedule(newDate)) {
-                                setAttendanceDate(newDate);
-                              } else {
-                                toast.error(
-                                  "This class is not scheduled for the selected date"
-                                );
-                                // Reset to a valid date
-                                const validDate = getNextValidDate();
-                                setAttendanceDate(validDate);
-                              }
+                            const value = e.target.value;
+                            if (value) {
+                              setAttendanceDate(value);
                             }
                           }}
                           type="date"
-                          value={attendanceDate.toISOString().split("T")[0]}
+                          value={attendanceDate}
                         />
                       </div>
                       {scheduleQuery.data && scheduleQuery.data.length > 0 && (
@@ -1185,7 +1131,7 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
                         className="gap-1.5 rounded-full"
                         disabled={
                           isClassCancelled ||
-                          markAttendanceMutation.isPending ||
+                          saveAttendanceMutation.isPending ||
                           !semesterConfigured
                         }
                         onClick={selectAllStudents}
@@ -1199,7 +1145,7 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
                         className="gap-1.5 rounded-full"
                         disabled={
                           isClassCancelled ||
-                          markAttendanceMutation.isPending ||
+                          saveAttendanceMutation.isPending ||
                           !semesterConfigured
                         }
                         onClick={clearAllStudents}
@@ -1214,13 +1160,13 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
                         disabled={
                           isClassCancelled ||
                           isDateInFuture ||
-                          markAttendanceMutation.isPending ||
+                          saveAttendanceMutation.isPending ||
                           !semesterConfigured
                         }
                         onClick={handleSaveAttendance}
                         size="sm"
                       >
-                        {markAttendanceMutation.isPending ? (
+                        {saveAttendanceMutation.isPending ? (
                           <>
                             <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                             Saving...
@@ -1246,7 +1192,7 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
                       >
                         {cancelClassMutation.isPending
                           ? "Cancelling..."
-                          : `Cancel for ${attendanceDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+                          : `Cancel for ${formatDateForDisplay(attendanceDate)}`}
                       </Button>
                     </div>
                   </div>
@@ -1254,13 +1200,8 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
                   {isClassCancelled && (
                     <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
                       <p className="font-medium text-sm">
-                        Class is cancelled for{" "}
-                        {attendanceDate.toLocaleDateString("en-US", {
-                          month: "long",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                        . Attendance cannot be taken on this date.
+                        Class is cancelled for {formatDateLong(attendanceDate)}.
+                        Attendance cannot be taken on this date.
                       </p>
                     </div>
                   )}
@@ -1283,40 +1224,78 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
                     </div>
                   )}
 
-                  <div className="overflow-hidden rounded-lg border border-white/10">
-                    <div className="grid grid-cols-12 border-white/10 border-b bg-muted/50 px-4 py-3 font-medium text-sm">
-                      <div className="col-span-1 text-center">Present</div>
-                      <div className="col-span-2">Roll Number</div>
-                      <div className="col-span-5">Name</div>
-                      <div className="col-span-4">Email</div>
-                    </div>
-                    {sortedStudents.length > 0 ? (
-                      sortedStudents.map((student) => (
-                        <div
-                          className="grid grid-cols-12 items-center border-white/10 border-b px-4 py-3 text-sm transition-colors last:border-b-0 hover:bg-white/5"
-                          key={student.id}
-                        >
-                          <div className="col-span-1 flex justify-center">
-                            <AttendanceCheckbox
-                              checked={presentStudents.has(student.id)}
-                              onChange={() =>
-                                toggleStudentAttendance(student.id)
-                              }
-                            />
-                          </div>
-                          <div className="col-span-2 font-mono text-muted-foreground">
-                            {student.rollNumber}
-                          </div>
-                          <div className="col-span-5 font-medium">
-                            {student.name}
-                          </div>
-                          <div className="col-span-4 truncate text-muted-foreground text-xs">
-                            {student.email}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="px-4 py-8 text-center text-muted-foreground">
+                  <div className="overflow-x-auto rounded-lg border border-white/10">
+                    <table className="min-w-full table-auto border-collapse text-sm">
+                      <thead className="border-white/10 border-b bg-muted/50">
+                        <tr>
+                          <th className="w-20 p-3 text-center font-medium">
+                            Present
+                          </th>
+                          <th className="w-32 p-3 text-left font-medium">
+                            Roll
+                          </th>
+                          <th className="p-3 text-left font-medium">Name</th>
+                          <th className="min-w-[200px] p-3 text-left font-medium">
+                            Email
+                          </th>
+                          <th className="w-12 p-3 text-center font-medium" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedStudents.map((student) => (
+                          <tr
+                            className="border-white/10 border-b transition-colors last:border-b-0 hover:bg-white/5"
+                            key={student.id}
+                          >
+                            <td className="p-3 text-center">
+                              <AttendanceCheckbox
+                                checked={getPresentStudents().has(student.id)}
+                                onChange={() =>
+                                  toggleStudentAttendance(student.id)
+                                }
+                              />
+                            </td>
+                            <td className="truncate p-3 font-mono text-muted-foreground text-sm">
+                              {student.rollNumber}
+                            </td>
+                            <td className="p-3 text-sm">{student.name}</td>
+                            <td className="truncate p-3 text-muted-foreground text-sm">
+                              {student.email}
+                            </td>
+                            <td className="p-3 text-center">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger>
+                                  <button
+                                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full p-0 text-muted-foreground transition-colors hover:bg-muted"
+                                    type="button"
+                                  >
+                                    <MoreVertical className="h-4 w-4" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    className="text-red-600 dark:text-red-400"
+                                    disabled={removeStudentMutation.isPending}
+                                    onClick={() =>
+                                      setRemoveConfirmStudent({
+                                        id: student.id,
+                                        name: student.name,
+                                        enrollmentId: student.id,
+                                      })
+                                    }
+                                  >
+                                    <AlertTriangle className="mr-2 h-4 w-4" />
+                                    Remove from class
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {sortedStudents.length === 0 && (
+                      <div className="p-8 text-center text-muted-foreground">
                         No students found matching your search
                       </div>
                     )}
@@ -1384,6 +1363,50 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
           </Tabs>
         </div>
       </main>
+
+      {/* Remove Student Confirmation Dialog */}
+      <Dialog
+        onOpenChange={(open) => !open && setRemoveConfirmStudent(null)}
+        open={!!removeConfirmStudent}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Remove Student</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove{" "}
+              <span className="font-medium text-foreground">
+                {removeConfirmStudent?.name}
+              </span>{" "}
+              from this class? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              onClick={() => setRemoveConfirmStudent(null)}
+              type="button"
+              variant="outline"
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={removeStudentMutation.isPending}
+              onClick={() => {
+                if (removeConfirmStudent) {
+                  removeStudentMutation.mutate({
+                    enrollmentId: removeConfirmStudent.enrollmentId,
+                    classId,
+                  });
+                  setRemoveConfirmStudent(null);
+                }
+              }}
+              type="button"
+              variant="destructive"
+            >
+              {removeStudentMutation.isPending ? "Removing..." : "Remove"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Semester Configuration Modal */}
       <Dialog onOpenChange={setIsSemesterModalOpen} open={isSemesterModalOpen}>

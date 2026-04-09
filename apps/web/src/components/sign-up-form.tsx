@@ -22,6 +22,7 @@ const otpSchema = z.object({
 });
 
 type Step = "details" | "verify";
+type UserRole = "student" | "professor";
 
 export function SignUpForm({
   onSwitchToSignIn,
@@ -35,6 +36,7 @@ export function SignUpForm({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
+  const [role, setRole] = useState<UserRole>("student");
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -100,6 +102,11 @@ export function SignUpForm({
         email,
         otp,
         name,
+        fetchOptions: {
+          body: {
+            role,
+          },
+        },
       });
 
       if (error) {
@@ -267,6 +274,38 @@ export function SignUpForm({
               )}
             </div>
 
+            {/* Role Selection */}
+            <div className="space-y-2">
+              <Label className="font-medium text-slate-700 text-sm dark:text-slate-300">
+                I am a
+              </Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  className={`rounded-lg border px-4 py-2.5 font-medium text-sm transition-all ${
+                    role === "student"
+                      ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-950/30 dark:text-indigo-300"
+                      : "border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/50 dark:border-slate-700 dark:text-slate-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/20"
+                  }`}
+                  onClick={() => setRole("student")}
+                  type="button"
+                >
+                  Student
+                </button>
+
+                <button
+                  className={`rounded-lg border px-4 py-2.5 font-medium text-sm transition-all ${
+                    role === "professor"
+                      ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-950/30 dark:text-indigo-300"
+                      : "border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/50 dark:border-slate-700 dark:text-slate-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/20"
+                  }`}
+                  onClick={() => setRole("professor")}
+                  type="button"
+                >
+                  Professor
+                </button>
+              </div>
+            </div>
+
             <Button
               className="w-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 font-medium text-white shadow-indigo-500/25 shadow-lg transition-all hover:from-indigo-600 hover:to-purple-700 hover:shadow-indigo-500/40"
               disabled={isLoading}
@@ -286,7 +325,7 @@ export function SignUpForm({
                       cy="12"
                       r="10"
                       stroke="currentColor"
-                      strokeWidth="4"
+                      strokeWidth={4}
                     />
                     <path
                       className="opacity-75"
