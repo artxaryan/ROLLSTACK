@@ -51,6 +51,103 @@ export const classRouter = router({
     return enrolledClasses;
   }),
 
+  getTodayEnrolledClasses: protectedProcedure.query(async ({ ctx }) => {
+    // Get current day of week (0=Sunday, 1=Monday, ... 6=Saturday)
+    // Convert to our format: 0=Monday, 6=Sunday
+    const jsDay = new Date().getDay();
+    const dayOfWeek = jsDay === 0 ? 6 : jsDay - 1;
+
+    // Get all enrolled class IDs for the student
+    const enrollments = await ctx.db
+      .select({ classId: studentEnrollment.classId })
+      .from(studentEnrollment)
+      .where(eq(studentEnrollment.studentId, ctx.session.user.id));
+
+    if (enrollments.length === 0) {
+      return [];
+    }
+
+    const classIds = enrollments.map((e) => e.classId);
+
+    // Get schedules for today that match enrolled classes
+    const schedules = await ctx.db
+      .select()
+      .from(classSchedule)
+      .where(
+        and(
+          inArray(classSchedule.classId, classIds),
+          eq(classSchedule.dayOfWeek, dayOfWeek)
+        )
+      )
+      .orderBy(classSchedule.startTime);
+
+    if (schedules.length === 0) {
+      return [];
+    }
+
+    // Get class info for these schedules
+    const scheduleClassIds = schedules.map((s) => s.classId);
+    const classes = await ctx.db
+      .select({
+        id: classTable.id,
+        className: classTable.className,
+        subject: classTable.subject,
+        classCode: classTable.classCode,
+        studentCount: classTable.studentCount,
+        professorId: classTable.professorId,
+      })
+      .from(classTable)
+      .where(inArray(classTable.id, scheduleClassIds));
+
+    const classMap = new Map(classes.map((c) => [c.id, c]));
+
+    // Get professor names
+    const professorIds = [...new Set(classes.map((c) => c.professorId))];
+    const professors = await ctx.db
+      .select({
+        id: user.id,
+        name: user.name,
+      })
+      .from(user)
+      .where(inArray(user.id, professorIds));
+    const professorMap = new Map(professors.map((p) => [p.id, p.name]));
+
+    // Get enrollment details for each schedule
+    const scheduleClassIdsArr = schedules.map((s) => s.classId);
+    const enrollmentsData = await ctx.db
+      .select({
+        classId: studentEnrollment.classId,
+        rollNumber: studentEnrollment.rollNumber,
+        enrolledAt: studentEnrollment.enrolledAt,
+      })
+      .from(studentEnrollment)
+      .where(
+        and(
+          inArray(studentEnrollment.classId, scheduleClassIdsArr),
+          eq(studentEnrollment.studentId, ctx.session.user.id)
+        )
+      );
+
+    const enrollmentMap = new Map(enrollmentsData.map((e) => [e.classId, e]));
+
+    return schedules.map((schedule) => {
+      const classInfo = classMap.get(schedule.classId);
+      const enrollment = enrollmentMap.get(schedule.classId);
+      return {
+        ...schedule,
+        class: classInfo
+          ? {
+              ...classInfo,
+              professorName:
+                professorMap.get(classInfo.professorId) ?? "Unknown",
+              rollNumber: enrollment?.rollNumber,
+              enrolledAt: enrollment?.enrolledAt,
+            }
+          : null,
+      };
+    });
+  }),
+
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {

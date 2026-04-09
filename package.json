@@ -43,6 +43,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.0",
+    "@neondatabase/serverless": "^1.0.2",
     "@sams-t-app/config": "workspace:*",
     "@types/bun": "catalog:",
     "turbo": "^2.6.3",
