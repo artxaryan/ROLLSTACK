@@ -701,6 +701,27 @@ export const classRouter = router({
         throw new Error("Cannot mark attendance for a cancelled class");
       }
 
+      // Check if attendance was already marked for this date
+      const existingAttendance = await ctx.db
+        .select({ studentId: attendance.studentId })
+        .from(attendance)
+        .where(
+          and(
+            eq(attendance.classId, input.classId),
+            sql`date_trunc('day', ${attendance.date}) = date_trunc('day', ${sql.raw(`'${dateStr}'::date`)})`
+          )
+        );
+
+      const alreadyMarked = existingAttendance.length > 0;
+      let alreadyMarkedMessage = "";
+
+      if (alreadyMarked) {
+        const previouslyPresent = existingAttendance.filter(
+          (r) => r.studentId !== null
+        ).length;
+        alreadyMarkedMessage = `Attendance already marked for ${dateStr} (${previouslyPresent} students)`;
+      }
+
       // Delete any existing records for this class on this day,
       // then insert fresh ones. Separate queries work with neon-http driver.
       await ctx.db
@@ -731,7 +752,12 @@ export const classRouter = router({
 
       console.log("[saveBatchAttendance] Successfully inserted records");
 
-      return { success: true, count: input.attendanceRecords.length };
+      return {
+        success: true,
+        count: input.attendanceRecords.length,
+        alreadyMarked,
+        message: alreadyMarkedMessage,
+      };
     }),
 
   getTodayAttendance: protectedProcedure
@@ -766,6 +792,16 @@ export const classRouter = router({
   getAverageAttendance: protectedProcedure
     .input(z.object({ classId: z.string() }))
     .query(async ({ ctx, input }) => {
+      // Get class info including semester dates
+      const classInfo = await ctx.db
+        .select({
+          semesterStartDate: classTable.semesterStartDate,
+          semesterEndDate: classTable.semesterEndDate,
+        })
+        .from(classTable)
+        .where(eq(classTable.id, input.classId))
+        .limit(1);
+
       // Get total number of students in the class
       const totalStudentsResult = await ctx.db
         .select({ count: count() })
@@ -775,7 +811,13 @@ export const classRouter = router({
       const totalStudents = totalStudentsResult[0]?.count ?? 0;
 
       if (totalStudents === 0) {
-        return { average: 0, totalSessions: 0 };
+        return {
+          average: 0,
+          totalSessions: 0,
+          semesterStartDate: classInfo[0]?.semesterStartDate,
+          semesterEndDate: classInfo[0]?.semesterEndDate,
+          classesLeftUntilEnd: null,
+        };
       }
 
       // Get all attendance records grouped by date
@@ -820,9 +862,52 @@ export const classRouter = router({
       const average =
         totalSessions > 0 ? Math.round(totalPercentage / totalSessions) : 0;
 
+      // Calculate classes left until semester end
+      let classesLeftUntilEnd: number | null = null;
+      const semesterEnd = classInfo[0]?.semesterEndDate;
+      const semesterStart = classInfo[0]?.semesterStartDate;
+
+      if (semesterEnd && semesterStart) {
+        const schedules = await ctx.db
+          .select()
+          .from(classSchedule)
+          .where(eq(classSchedule.classId, input.classId));
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const endDate = new Date(semesterEnd);
+        endDate.setHours(0, 0, 0, 0);
+
+        if (today <= endDate) {
+          const currentDay = new Date(today);
+          classesLeftUntilEnd = 0;
+
+          while (currentDay <= endDate) {
+            const jsDay = currentDay.getDay();
+            const ourDay = jsDay === 0 ? 6 : jsDay - 1;
+
+            const daySchedules = schedules.filter(
+              (s) => s.dayOfWeek === ourDay
+            );
+            classesLeftUntilEnd += daySchedules.length;
+
+            currentDay.setDate(currentDay.getDate() + 1);
+          }
+
+          // Subtract sessions already marked (each session is one day with attendance)
+          classesLeftUntilEnd -= totalSessions;
+          if (classesLeftUntilEnd < 0) {
+            classesLeftUntilEnd = 0;
+          }
+        }
+      }
+
       return {
         average,
         totalSessions,
+        semesterStartDate: classInfo[0]?.semesterStartDate,
+        semesterEndDate: classInfo[0]?.semesterEndDate,
+        classesLeftUntilEnd,
       };
     }),
 

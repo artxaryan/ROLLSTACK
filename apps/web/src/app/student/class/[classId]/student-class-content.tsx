@@ -152,7 +152,12 @@ export function StudentClassContent({ classId }: StudentClassContentProps) {
   const statsQuery = useQuery(
     trpc.class.getStudentClassStats.queryOptions(
       { classId },
-      { refetchOnMount: true, refetchOnWindowFocus: true, staleTime: 0 }
+      {
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
+        staleTime: 0,
+        networkMode: "always",
+      }
     )
   );
 

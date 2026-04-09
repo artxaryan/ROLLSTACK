@@ -82,49 +82,6 @@ interface ScheduleItem {
   startTime: string;
 }
 
-interface AttendanceQueryState {
-  error: unknown;
-  isLoading: boolean;
-}
-
-function AverageAttendanceValue({
-  query,
-  value,
-}: {
-  query: AttendanceQueryState;
-  value: number;
-}) {
-  if (query.isLoading) {
-    return (
-      <span className="inline-block h-8 w-20 animate-pulse rounded bg-muted" />
-    );
-  }
-  if (query.error) {
-    return <span className="text-red-500 text-sm">Error</span>;
-  }
-  return <>{value}%</>;
-}
-
-function AverageAttendanceProgressBar({
-  query,
-  value,
-}: {
-  query: AttendanceQueryState;
-  value: number;
-}) {
-  if (query.isLoading || query.error) {
-    return null;
-  }
-  return (
-    <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-700">
-      <div
-        className="h-full rounded-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500"
-        style={{ width: `${value}%` }}
-      />
-    </div>
-  );
-}
-
 // Custom checkbox component with violet styling and white tick
 function AttendanceCheckbox({
   checked,
@@ -672,7 +629,7 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
   const averageAttendanceQuery = useQuery(
     trpc.class.getAverageAttendance.queryOptions({ classId })
   );
-  const averageAttendance = averageAttendanceQuery.data?.average ?? 0;
+  const classesLeftUntilEnd = averageAttendanceQuery.data?.classesLeftUntilEnd;
 
   const handleCopyCode = () => {
     if (!classData) {
@@ -720,11 +677,27 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
   // Save attendance mutation - don't invalidate to keep local state
   const saveAttendanceMutation = useMutation({
     ...trpc.class.saveBatchAttendance.mutationOptions(),
-    onSuccess: () => {
-      // Just invalidate average attendance, not the date-specific one
+    onSuccess: (result) => {
+      // Invalidate average attendance
       queryClient.invalidateQueries(
         trpc.class.getAverageAttendance.queryFilter({ classId })
       );
+      // Invalidate student stats so check marks persist in student dashboard
+      queryClient.invalidateQueries(
+        trpc.class.getStudentClassStats.queryFilter({ classId })
+      );
+      // Also invalidate any other class-related queries to ensure freshness
+      queryClient.invalidateQueries({
+        queryKey: ["class"],
+      });
+      // Show appropriate toast message
+      if (result?.alreadyMarked) {
+        toast.success(
+          result.message || `Attendance already marked for ${attendanceDate}`
+        );
+      } else {
+        toast.success(`Attendance saved successfully for ${attendanceDate}`);
+      }
     },
     onError: (error) => {
       toast.error(error.message || "Failed to save attendance");
@@ -1029,23 +1002,14 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
             <Card className="relative overflow-hidden rounded-xl border border-white/10 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-amber-500/50 hover:shadow-[0_0_15px_rgba(245,158,11,0.15)] sm:col-span-2 dark:hover:border-violet-500/50 dark:hover:shadow-[0_0_15px_rgba(139,92,246,0.15)]">
               <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-amber-500/5 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 dark:from-violet-500/5" />
               <CardHeader className="relative pb-2">
-                <CardDescription>Average Attendance</CardDescription>
+                <CardDescription>
+                  Classes Left Until Semester End
+                </CardDescription>
                 <CardTitle className="text-3xl">
-                  <AverageAttendanceValue
-                    query={{
-                      isLoading: averageAttendanceQuery.isLoading,
-                      error: averageAttendanceQuery.error,
-                    }}
-                    value={averageAttendance}
-                  />
+                  {averageAttendanceQuery.isLoading
+                    ? "..."
+                    : (classesLeftUntilEnd ?? "N/A")}
                 </CardTitle>
-                <AverageAttendanceProgressBar
-                  query={{
-                    isLoading: averageAttendanceQuery.isLoading,
-                    error: averageAttendanceQuery.error,
-                  }}
-                  value={averageAttendance}
-                />
               </CardHeader>
             </Card>
           </div>
