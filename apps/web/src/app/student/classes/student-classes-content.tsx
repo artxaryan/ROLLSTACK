@@ -138,21 +138,22 @@ function ClassesGrid({
               </div>
             </div>
           </CardContent>
-          <CardFooter className="flex gap-2">
+          <CardFooter className="flex items-center justify-end gap-2">
+            <Button
+              className="rounded-full px-4 transition-all duration-200 hover:bg-muted active:scale-[0.98]"
+              onClick={() => onLeaveClass(classItem.enrollmentId)}
+              size="sm"
+              title="Leave class"
+              variant="outline"
+            >
+              <LogOut className="h-4 w-4 text-red-500" />
+            </Button>
             <Button
               className="flex-1 rounded-full transition-all duration-200 hover:shadow-md hover:brightness-110 active:scale-[0.98]"
               onClick={() => onOpenClass(classItem.classId)}
             >
               <User className="mr-2 h-4 w-4" />
-              View
-            </Button>
-            <Button
-              className="flex-1 rounded-full transition-all duration-200 hover:bg-muted active:scale-[0.98]"
-              onClick={() => onLeaveClass(classItem.enrollmentId)}
-              variant="outline"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Leave
+              View Class
             </Button>
           </CardFooter>
         </Card>
