@@ -38,10 +38,10 @@
     "@sams-t-app/env": "workspace:*",
     "date-fns": "^4.1.0",
     "dotenv": "catalog:",
+    "next": "16.1.1",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "next": "^16.1.1",
     "@biomejs/biome": "2.4.0",
     "@sams-t-app/config": "workspace:*",
     "@types/bun": "catalog:",
