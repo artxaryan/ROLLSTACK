@@ -525,6 +525,11 @@ export const classRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      console.log(
+        "[saveBatchAttendance] Input received:",
+        JSON.stringify(input, null, 2)
+      );
+
       // Check if semester dates are configured
       const classData = await ctx.db
         .select({
@@ -536,15 +541,26 @@ export const classRouter = router({
         .limit(1);
 
       if (classData.length === 0) {
+        console.log("[saveBatchAttendance] Class not found:", input.classId);
         throw new Error("Class not found");
       }
 
       const classInfo = classData[0];
       if (!classInfo) {
+        console.log(
+          "[saveBatchAttendance] Class info null for:",
+          input.classId
+        );
         throw new Error("Class not found");
       }
 
       if (!(classInfo.semesterStartDate && classInfo.semesterEndDate)) {
+        console.log(
+          "[saveBatchAttendance] Semester dates not configured. Start:",
+          classInfo.semesterStartDate,
+          "End:",
+          classInfo.semesterEndDate
+        );
         throw new Error(
           "Please configure semester dates before taking attendance"
         );
@@ -552,12 +568,19 @@ export const classRouter = router({
 
       // Use provided date or default to today
       const dateStr = input.date ?? new Date().toISOString().split("T")[0];
+      console.log("[saveBatchAttendance] Date string:", dateStr);
 
       // Check if date is in the future
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const attendanceDate = new Date(`${dateStr}T00:00:00`);
+      console.log(
+        "[saveBatchAttendance] Parsed attendance date:",
+        attendanceDate.toISOString()
+      );
+
       if (attendanceDate > today) {
+        console.log("[saveBatchAttendance] Date is in future:", attendanceDate);
         throw new Error("Cannot mark attendance for future dates");
       }
 
@@ -574,6 +597,10 @@ export const classRouter = router({
         .limit(1);
 
       if (cancelledClassData.length > 0) {
+        console.log(
+          "[saveBatchAttendance] Class is cancelled for date:",
+          dateStr
+        );
         throw new Error("Cannot mark attendance for a cancelled class");
       }
 
@@ -597,7 +624,15 @@ export const classRouter = router({
         date: attendanceDate,
       }));
 
+      console.log(
+        "[saveBatchAttendance] About to insert:",
+        values.length,
+        "records"
+      );
+
       await ctx.db.insert(attendance).values(values);
+
+      console.log("[saveBatchAttendance] Successfully inserted records");
 
       return { success: true, count: input.attendanceRecords.length };
     }),
