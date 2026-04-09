@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Calendar,
   GraduationCap,
   LayoutDashboard,
   LogOut,
@@ -48,7 +47,6 @@ interface StudentClassesContentProps {
 const navigation = [
   { name: "Dashboard", href: "/student/dashboard", icon: LayoutDashboard },
   { name: "My Classes", href: "/student/classes", icon: GraduationCap },
-  { name: "Calendar", href: "/student/calendar", icon: Calendar },
 ] as const;
 
 interface EnrolledClass {
@@ -272,18 +270,6 @@ export function StudentClassesContent({
                 <Link
                   className={baseClassName}
                   href="/student/classes"
-                  key={item.name}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.name}
-                </Link>
-              );
-            }
-            if (item.name === "Calendar") {
-              return (
-                <Link
-                  className={baseClassName}
-                  href="/student/calendar"
                   key={item.name}
                 >
                   <item.icon className="h-4 w-4" />
