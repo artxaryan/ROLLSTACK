@@ -853,6 +853,13 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
   const todayStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
   const isDateInFuture = attendanceDate > todayStr;
   const isDateInPast = attendanceDate < todayStr;
+
+  // Check if selected date has a scheduled class
+  const selectedDate = new Date(`${attendanceDate}T00:00:00`);
+  const dayOfWeek = selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1;
+  const isDateInSchedule =
+    scheduleQuery.data?.some((s) => s.dayOfWeek === dayOfWeek) ?? false;
+
   const presentCount = getPresentStudents().size;
   const totalCount = sortedStudents.length;
 
@@ -1132,7 +1139,8 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
                         disabled={
                           isClassCancelled ||
                           saveAttendanceMutation.isPending ||
-                          !semesterConfigured
+                          !semesterConfigured ||
+                          !isDateInSchedule
                         }
                         onClick={selectAllStudents}
                         size="sm"
@@ -1146,7 +1154,8 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
                         disabled={
                           isClassCancelled ||
                           saveAttendanceMutation.isPending ||
-                          !semesterConfigured
+                          !semesterConfigured ||
+                          !isDateInSchedule
                         }
                         onClick={clearAllStudents}
                         size="sm"
@@ -1161,7 +1170,8 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
                           isClassCancelled ||
                           isDateInFuture ||
                           saveAttendanceMutation.isPending ||
-                          !semesterConfigured
+                          !semesterConfigured ||
+                          !isDateInSchedule
                         }
                         onClick={handleSaveAttendance}
                         size="sm"
@@ -1184,7 +1194,8 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
                           isClassCancelled ||
                           isDateInPast ||
                           cancelClassMutation.isPending ||
-                          !semesterConfigured
+                          !semesterConfigured ||
+                          !isDateInSchedule
                         }
                         onClick={handleCancelClass}
                         size="sm"
@@ -1220,6 +1231,19 @@ export function ClassDetailContent({ classId }: ClassDetailContentProps) {
                       <p className="font-medium text-sm">
                         Please configure semester dates before taking
                         attendance.
+                      </p>
+                    </div>
+                  )}
+
+                  {!(
+                    isDateInSchedule ||
+                    isDateInFuture ||
+                    isClassCancelled
+                  ) && (
+                    <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                      <p className="font-medium text-sm">
+                        No class scheduled for {formatDateLong(attendanceDate)}.
+                        You cannot mark attendance for dates without a schedule.
                       </p>
                     </div>
                   )}
