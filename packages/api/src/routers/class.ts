@@ -277,7 +277,7 @@ export const classRouter = router({
     .query(async ({ ctx, input }) => {
       const students = await ctx.db
         .select({
-          id: studentEnrollment.id,
+          id: user.id,
           rollNumber: studentEnrollment.rollNumber,
           name: user.name,
           email: user.email,
