@@ -41,6 +41,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "next": "^16.1.1",
     "@biomejs/biome": "2.4.0",
     "@sams-t-app/config": "workspace:*",
     "@types/bun": "catalog:",
