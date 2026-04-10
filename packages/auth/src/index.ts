@@ -34,6 +34,20 @@ export const auth = betterAuth({
       },
     },
   },
+  databaseHooks: {
+    user: {
+      create: {
+        before(user, _context) {
+          return Promise.resolve({
+            data: {
+              ...user,
+              role: (user as { role?: string }).role || "student",
+            },
+          });
+        },
+      },
+    },
+  },
   advanced: {
     defaultCookieAttributes: {
       sameSite: "none",

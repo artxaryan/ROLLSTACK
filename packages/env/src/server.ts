@@ -12,8 +12,8 @@ export const env = createEnv({
       .enum(["development", "production", "test"])
       .default("development"),
     RESEND_API_KEY: z.string().min(1).optional(),
-    BREVO_API_KEY: z.string().min(1).optional(),
-    BREVO_SENDER_EMAIL: z.string().email().optional(),
+    BREVO_API_KEY: z.string().min(1),
+    BREVO_SENDER_EMAIL: z.string().email(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

@@ -11,6 +11,11 @@ build
 # Environment variables
 .env
 .env*.local
+# Env files in subdirectories (except examples)
+apps/*/.env
+apps/*/.env.*
+!apps/*/.env.example
+!apps/*/.env.production.example
 
 # IDEs and editors
 .vscode/*

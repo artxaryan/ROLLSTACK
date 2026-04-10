@@ -74,7 +74,7 @@ export function SignUpForm({
     try {
       const { error } = await authClient.emailOtp.sendVerificationOtp({
         email,
-        type: "sign-in",
+        type: "email-verification",
       });
 
       if (error) {
