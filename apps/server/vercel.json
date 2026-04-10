@@ -2,7 +2,6 @@
   "framework": null,
   "buildCommand": "bun run build",
   "installCommand": "bun install",
-  "outputDirectory": "dist",
   "routes": [
     {
       "src": "/(.*)",
