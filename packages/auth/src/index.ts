@@ -89,15 +89,33 @@ export const auth = betterAuth({
         try {
           const brevoClient = new BrevoClient({ apiKey: brevoApiKey });
 
-          await brevoClient.transactionalEmails.sendTransacEmail({
+          console.log("[Auth] Sending OTP via Brevo:", {
+            to: email,
+            from: senderEmail,
             subject,
-            htmlContent: `<html><body><h2>Your OTP is: <strong>${otp}</strong></h2></body></html>`,
-            textContent: `Your OTP is: ${otp}`,
-            to: [{ email, name: email }],
-            sender: { email: senderEmail, name: senderName },
           });
+
+          const response =
+            await brevoClient.transactionalEmails.sendTransacEmail({
+              subject,
+              htmlContent: `<html><body><h2>Your OTP is: <strong>${otp}</strong></h2></body></html>`,
+              textContent: `Your OTP is: ${otp}`,
+              to: [{ email, name: email }],
+              sender: { email: senderEmail, name: senderName },
+            });
+
+          console.log("[Auth] Brevo response:", JSON.stringify(response));
         } catch (error) {
-          const err = error as { message?: string; code?: string };
+          const err = error as {
+            message?: string;
+            code?: string;
+            response?: unknown;
+          };
+          console.error("[Auth] Brevo error details:", {
+            message: err.message,
+            code: err.code,
+            response: err.response,
+          });
           const errorMsg =
             err.message ||
             `Failed to send email. Code: ${err.code || "unknown"}`;
