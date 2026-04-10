@@ -47,17 +47,20 @@ export const auth = betterAuth({
         const brevoApiKey = process.env.BREVO_API_KEY;
 
         if (!brevoApiKey) {
-          console.warn(
-            "[Auth] BREVO_API_KEY not set. OTP would be sent to:",
-            email,
-            "OTP:",
-            otp
-          );
-          return;
+          const errorMsg =
+            "Email service not configured. Please contact support.";
+          console.error("[Auth]", errorMsg);
+          throw new Error(errorMsg);
         }
 
-        const senderEmail =
-          process.env.BREVO_SENDER_EMAIL || "noreply@yourdomain.com";
+        const senderEmail = process.env.BREVO_SENDER_EMAIL;
+        if (!senderEmail) {
+          const errorMsg =
+            "Email sender not configured. Please contact support.";
+          console.error("[Auth]", errorMsg);
+          throw new Error(errorMsg);
+        }
+
         const senderName = "SAMS";
 
         let subject = "Your verification code";
@@ -80,8 +83,12 @@ export const auth = betterAuth({
             sender: { email: senderEmail, name: senderName },
           });
         } catch (error) {
-          console.error("[Auth] Failed to send email:", error);
-          throw error;
+          const err = error as { message?: string; code?: string };
+          const errorMsg =
+            err.message ||
+            `Failed to send email. Code: ${err.code || "unknown"}`;
+          console.error("[Auth] Email send failed:", errorMsg);
+          throw new Error(errorMsg);
         }
       },
     }),
