@@ -1,7 +1,5 @@
 {
   "framework": null,
-  "buildCommand": "bun run build",
-  "installCommand": "bun install",
-  "outputDirectory": "dist",
-  "rewrites": [{ "source": "/(.*)", "destination": "index.mjs" }]
+  "buildCommand": "bun run build && mkdir -p .vercel/output/functions/index.func && cp dist/index.mjs .vercel/output/functions/index.func/ && echo '{\"runtime\":\"nodejs22.x\",\"handler\":\"index.mjs\",\"launcherType\":\"Nodejs\"}' > .vercel/output/functions/index.func/.vc-config.json && echo '{\"version\":3}' > .vercel/output/config.json",
+  "installCommand": "bun install"
 }
