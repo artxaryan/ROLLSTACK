@@ -7,13 +7,16 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
+// env is imported for validation at module load time
+env;
+
 const app = new Hono();
 
 app.use(logger());
 app.use(
   "/*",
   cors({
-    origin: env.CORS_ORIGIN,
+    origin: process.env.CORS_ORIGIN || "http://localhost:3001",
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,
