@@ -7,12 +7,12 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
-// env is imported for validation at module load time
 env;
 
 const app = new Hono();
 
 app.use(logger());
+
 app.use(
   "/*",
   cors({
@@ -37,6 +37,23 @@ app.all(
 
 app.get("/", (c) => {
   return c.text("OK");
+});
+
+app.get("/api/debug/env", (c) => {
+  return c.json({
+    nodeEnv: process.env.NODE_ENV,
+    corsOrigin: process.env.CORS_ORIGIN ? "set" : "not-set",
+    betterAuthUrl: process.env.BETTER_AUTH_URL ? "set" : "not-set",
+    hasBetterAuthSecret: !!process.env.BETTER_AUTH_SECRET,
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    hasBrevoApiKey: !!process.env.BREVO_API_KEY,
+    hasBrevoSenderEmail: !!process.env.BREVO_SENDER_EMAIL,
+  });
+});
+
+app.onError((err, c) => {
+  console.error("[Server Error]", err.message);
+  return c.json({ error: err.message }, 500);
 });
 
 export default app;
