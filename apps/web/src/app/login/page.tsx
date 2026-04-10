@@ -1,12 +1,12 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 
 import { SignInForm } from "@/components/sign-in-form";
 import SignUpForm from "@/components/sign-up-form";
 
-export default function LoginPage() {
+function LoginForm() {
   const searchParams = useSearchParams();
   const mode = searchParams.get("mode");
   const [showSignIn, setShowSignIn] = useState(mode !== "signup");
@@ -76,5 +76,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0f0f1a]" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

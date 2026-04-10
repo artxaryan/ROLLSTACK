@@ -366,5 +366,3 @@ export function SignInForm({ onSwitchToSignUp }: SignInFormProps) {
     </div>
   );
 }
-
-export { SignInForm };
