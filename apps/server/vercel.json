@@ -1,5 +1,12 @@
 {
   "framework": null,
   "buildCommand": "bun run build",
-  "installCommand": "bun install"
+  "installCommand": "bun install",
+  "outputDirectory": "dist",
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "dist/index.mjs"
+    }
+  ]
 }
