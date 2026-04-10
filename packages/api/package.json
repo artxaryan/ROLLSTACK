@@ -9,7 +9,9 @@
       "default": "./src/*.ts"
     }
   },
-  "scripts": {},
+  "scripts": {
+    "build": "tsdown"
+  },
   "dependencies": {
     "@sams-t-app/auth": "workspace:*",
     "@sams-t-app/db": "workspace:*",
