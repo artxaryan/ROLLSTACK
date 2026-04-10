@@ -97,6 +97,7 @@
       },
       "devDependencies": {
         "@sams-t-app/config": "workspace:*",
+        "tsdown": "^0.16.5",
         "typescript": "catalog:",
       },
     },
@@ -113,6 +114,7 @@
       },
       "devDependencies": {
         "@sams-t-app/config": "workspace:*",
+        "tsdown": "^0.16.5",
         "typescript": "catalog:",
       },
     },
@@ -132,6 +134,7 @@
       "devDependencies": {
         "@sams-t-app/config": "workspace:*",
         "drizzle-kit": "^0.31.8",
+        "tsdown": "^0.16.5",
         "typescript": "catalog:",
       },
     },
@@ -147,6 +150,7 @@
       "devDependencies": {
         "@sams-t-app/config": "workspace:*",
         "@types/bun": "catalog:",
+        "tsdown": "^0.16.5",
         "typescript": "catalog:",
       },
     },
