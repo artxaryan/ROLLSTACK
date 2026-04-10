@@ -35,14 +35,16 @@ export function SignInForm({ onSwitchToSignUp }: SignInFormProps) {
       });
 
       if (error) {
+        console.error("[Auth] OTP send error:", error);
         toast.error(error.message || "Failed to send OTP");
         return;
       }
 
       toast.success("OTP sent to your email!");
       setStep("verify");
-    } catch (_err) {
-      toast.error("Failed to send OTP. Please try again.");
+    } catch (err) {
+      console.error("[Auth] OTP send exception:", err);
+      toast.error("Failed to send OTP. Check console for details.");
     } finally {
       setIsLoading(false);
     }
