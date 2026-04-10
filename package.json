@@ -46,7 +46,7 @@
     "@neondatabase/serverless": "^1.0.2",
     "@sams-t-app/config": "workspace:*",
     "@types/bun": "catalog:",
-    "turbo": "^2.6.3",
+    "turbo": "^2.9.5",
     "typescript": "catalog:",
     "ultracite": "7.2.4"
   },
