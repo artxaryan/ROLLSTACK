@@ -44,21 +44,10 @@ export const auth = betterAuth({
   plugins: [
     emailOTP({
       async sendVerificationOTP({ email, otp, type }) {
-        console.log("\n=== DEBUG: sendVerificationOTP called ===");
-        console.log("Email:", email);
-        console.log("OTP:", otp);
-        console.log("Type:", type);
-        console.log("NODE_ENV:", process.env.NODE_ENV);
-        console.log("BREVO_API_KEY exists:", !!process.env.BREVO_API_KEY);
-        console.log(
-          "BREVO_API_KEY length:",
-          process.env.BREVO_API_KEY?.length || 0
-        );
-
         const brevoApiKey = process.env.BREVO_API_KEY;
 
         if (!brevoApiKey) {
-          console.log(
+          console.warn(
             "[Auth] BREVO_API_KEY not set. OTP would be sent to:",
             email,
             "OTP:",
@@ -71,8 +60,6 @@ export const auth = betterAuth({
           process.env.BREVO_SENDER_EMAIL || "noreply@yourdomain.com";
         const senderName = "SAMS";
 
-        console.log("Sender email:", senderEmail);
-
         let subject = "Your verification code";
         if (type === "sign-in") {
           subject = "Sign in to your account";
@@ -82,33 +69,18 @@ export const auth = betterAuth({
           subject = "Reset your password";
         }
 
-        console.log("Subject:", subject);
-
         try {
-          console.log("[Auth] Creating Brevo client...");
           const brevoClient = new BrevoClient({ apiKey: brevoApiKey });
 
-          console.log("[Auth] Sending email via Brevo...");
-          const response =
-            await brevoClient.transactionalEmails.sendTransacEmail({
-              subject,
-              htmlContent: `<html><body><h2>Your OTP is: <strong>${otp}</strong></h2></body></html>`,
-              textContent: `Your OTP is: ${otp}`,
-              to: [{ email, name: email }],
-              sender: { email: senderEmail, name: senderName },
-            });
-
-          console.log(
-            "[Auth] Brevo response:",
-            JSON.stringify(response, null, 2)
-          );
-          console.log("[Auth] Email sent successfully!\n");
+          await brevoClient.transactionalEmails.sendTransacEmail({
+            subject,
+            htmlContent: `<html><body><h2>Your OTP is: <strong>${otp}</strong></h2></body></html>`,
+            textContent: `Your OTP is: ${otp}`,
+            to: [{ email, name: email }],
+            sender: { email: senderEmail, name: senderName },
+          });
         } catch (error) {
-          console.error("[Auth] Brevo error details:");
-          console.error("Error name:", (error as Error).name);
-          console.error("Error message:", (error as Error).message);
-          console.error("Error stack:", (error as Error).stack);
-          console.error("Full error:", error);
+          console.error("[Auth] Failed to send email:", error);
           throw error;
         }
       },
